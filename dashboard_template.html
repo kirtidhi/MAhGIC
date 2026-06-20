@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Brain Pipeline</title>
+    <style>
+        body {
+            background-color: #f9fafb;
+            color: #1f2937;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+        .container {
+            max-w-6xl: 1152px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            border: 1px solid #e5e7eb;
+        }
+        h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1.5rem; text-align: center; color: #111827; }
+        h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 1rem; color: #111827; margin-top: 2rem; }
+        h3 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.75rem; color: #1f2937; margin-top: 1.5rem; }
+        p { margin-bottom: 1rem; }
+        
+        .phase-card { 
+            background-color: #ffffff; 
+            border-radius: 0.75rem; 
+            padding: 1.5rem; 
+            margin-bottom: 2rem; 
+            border-left: 5px solid #3b82f6; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+        }
+        .phase-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #111827; }
+        .phase-desc { font-size: 1rem; color: #4b5563; margin-bottom: 1.5rem; }
+        .results-box { background-color: #f3f4f6; border-radius: 0.5rem; padding: 1.5rem; color: #1f2937; border: 1px solid #e5e7eb; }
+        
+        table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+        th, td { border: 1px solid #d1d5db; padding: 0.75rem; text-align: left; }
+        th { background-color: #e5e7eb; color: #374151; font-weight: 600; }
+        td { background-color: #ffffff; color: #111827; }
+
+        .markdown-body { text-align: left; line-height: 1.6; font-size: 1rem; }
+        .markdown-body h3 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #2563eb; }
+        .markdown-body p { margin-bottom: 1rem; }
+        .markdown-body ul { list-style-type: disc; padding-left: 2rem; margin-bottom: 1rem; }
+        .markdown-body li { margin-bottom: 0.5rem; }
+        .markdown-body strong { font-weight: 600; color: #111827; }
+        
+        .gem-container { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid #e5e7eb; }
+        .gem-container:last-child { border-bottom: none; }
+        .chart-container { width: 100%; max-width: 800px; margin: 2rem auto; }
+        #token-usage { margin-top: 20px; color: #6b7280; font-size: 0.9em; text-align: right; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Stock Brain Pipeline Execution</h1>
+        
+        <div class="phase-card" id="phase-1">
+            <div class="phase-title">Phase 1: Macro Brain</div>
+            <div class="phase-desc">Analyzes the global economic climate and derives strategic trends using top-down macro analysis.</div>
+            <div class="results-box" id="res-phase-1">Awaiting data...</div>
+        </div>
+
+        <div class="phase-card" id="phase-2">
+            <div class="phase-title">Phase 1.5 & 2: Discovery Engine & Market Brain</div>
+            <div class="phase-desc">Generates a massive list of publicly traded companies aligned with the identified macro trends for the target country, and rigorously evaluates them against the Wisdom Corpus to generate a Hidden Gem Score (0-10).</div>
+            <div class="results-box" id="res-phase-2" style="overflow-x: auto;">Awaiting data...</div>
+        </div>
+
+        <div class="phase-card" id="phase-3">
+            <div class="phase-title">Phase 3: Strategic Intent Analysis</div>
+            <div class="phase-desc">Only runs for companies that score 6 or higher. Deep-dives into job postings and LinkedIn executive data to uncover hidden strategic intent and R&D pipelines.</div>
+            <div class="results-box" id="res-phase-3">Awaiting data...</div>
+        </div>
+        
+        <!-- Replaced the green border with a standard blue border like the others -->
+        <div class="phase-card">
+            <div class="phase-title">Final Results: Hidden Gems</div>
+            <div class="results-box" id="res-final" style="background-color: #ffffff;">Awaiting data...</div>
+            <div id="token-usage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Set marked options to handle line breaks better
+        marked.use({ breaks: true, gfm: true });
+
+        Promise.resolve({}).then(data => {
+            // Phase 1
+            const macro = data.macro_result;
+            let macroHtml = `<p><strong>Trends:</strong> ${macro.trends.join(', ')}</p>`;
+            macroHtml += `<p><strong>Commentary:</strong> ${macro.commentary}</p>`;
+            macroHtml += `<p><strong>Sources:</strong> ${macro.sources.join(', ')}</p>`;
+            document.getElementById('res-phase-1').innerHTML = macroHtml;
+
+            // Phase 2
+            let scoresHtml = `<table><tr><th>Company</th><th>Ticker</th><th>Description</th><th>Trends</th><th>Score</th></tr>`;
+            data.discovered_companies.forEach(c => {
+                let ticker = c.ticker;
+                let score = data.all_scores.hasOwnProperty(ticker) ? data.all_scores[ticker] : 'N/A';
+                let color = score >= 6 ? 'green' : (score > 3 ? '#d97706' : 'red');
+                scoresHtml += `<tr>
+                    <td><strong>${c.company_name}</strong></td>
+                    <td>${ticker}</td>
+                    <td>${c.description}</td>
+                    <td>${c.trends_matched.join(', ')}</td>
+                    <td style="color: ${color}; font-weight: bold; font-size: 1.1em;">${score}/10</td>
+                </tr>`;
+            });
+            scoresHtml += `</table>`;
+            document.getElementById('res-phase-2').innerHTML = scoresHtml || "Evaluation data populated here.";
+
+            // Phase 3
+            document.getElementById('res-phase-3').innerHTML = "<p>Strategic intent analysis complete for all companies scoring >= 6.</p>";
+
+            // Final
+            let finalHtml = "";
+            if (data.hidden_gems && data.hidden_gems.length > 0) {
+                data.hidden_gems.forEach(gem => {
+                    finalHtml += `<div class="gem-container">`;
+                    finalHtml += `<h2>🌟 ${gem}</h2>`;
+                    
+                    if(data.hidden_gems_thesis && data.hidden_gems_thesis[gem]) {
+                        // Pre-process thesis to avoid weird dictionary rendering issues
+                        let rawThesis = data.hidden_gems_thesis[gem];
+                        // Render with marked
+                        let formattedThesis = marked.parse(rawThesis);
+                        finalHtml += `<div class="markdown-body">${formattedThesis}</div>`;
+                    }
+                    
+                    finalHtml += `<div class="chart-container"><canvas id="chart-${gem}"></canvas></div>`;
+                    finalHtml += `</div>`;
+                });
+            } else {
+                finalHtml = "<p>No Hidden Gems found (Score >= 6) based on strict criteria.</p>";
+            }
+            document.getElementById('res-final').innerHTML = finalHtml;
+            
+            // Render charts
+            if (data.hidden_gems && data.hidden_gems.length > 0 && data.hidden_gems_data) {
+                data.hidden_gems.forEach(gem => {
+                    let gemData = data.hidden_gems_data[gem];
+                    if (gemData && gemData.dates && gemData.trends) {
+                        // Use setTimeout to ensure canvas elements are in the DOM before rendering
+                        setTimeout(() => {
+                            let ctx = document.getElementById(`chart-${gem}`);
+                            if (!ctx) return;
+                            
+                            let labels = gemData.dates.slice().reverse();
+                            let len = labels.length;
+                            let revTrend = gemData.trends["Total Revenue"].slice(0, len).reverse();
+                            let netIncome = gemData.trends["Net Income"].slice(0, len).reverse();
+                            let fcf = gemData.trends["Free Cash Flow"].slice(0, len).reverse();
+                            
+                            new Chart(ctx.getContext('2d'), {
+                                type: 'line',
+                                data: {
+                                    labels: labels,
+                                    datasets: [
+                                        {
+                                            label: 'Total Revenue',
+                                            data: revTrend,
+                                            borderColor: '#3b82f6',
+                                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                            fill: true,
+                                            tension: 0.3
+                                        },
+                                        {
+                                            label: 'Net Income',
+                                            data: netIncome,
+                                            borderColor: '#f59e0b',
+                                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                            fill: true,
+                                            tension: 0.3
+                                        },
+                                        {
+                                            label: 'Free Cash Flow',
+                                            data: fcf,
+                                            borderColor: '#10b981',
+                                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                            fill: true,
+                                            tension: 0.3
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    plugins: {
+                                        title: { display: true, text: `Financial Performance (Last 5 Quarters) - ${gem}`, font: { size: 16 } },
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function(context) {
+                                                    let val = context.raw;
+                                                    if (Math.abs(val) >= 1e9) return context.dataset.label + ': $' + (val/1e9).toFixed(2) + 'B';
+                                                    if (Math.abs(val) >= 1e6) return context.dataset.label + ': $' + (val/1e6).toFixed(2) + 'M';
+                                                    return context.dataset.label + ': $' + val;
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        y: {
+                                            ticks: {
+                                                callback: function(value) {
+                                                    if (Math.abs(value) >= 1e9) return '$' + (value/1e9).toFixed(1) + 'B';
+                                                    if (Math.abs(value) >= 1e6) return '$' + (value/1e6).toFixed(1) + 'M';
+                                                    return '$' + value;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }, 100);
+                    }
+                });
+            }
+            
+            document.getElementById('token-usage').innerHTML = `<strong>Total Tokens Used:</strong> ${data.token_usage.toLocaleString()}`;
+        }).catch(err => {
+            console.error("Error populating data", err);
+        });
+    </script>
+</body>
+</html>
