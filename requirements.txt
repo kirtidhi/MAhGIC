@@ -1,0 +1,10 @@
+google-genai
+yfinance
+beautifulsoup4
+streamlit
+pandas
+requests
+playwright
+openai
+anthropic
+ddgs
