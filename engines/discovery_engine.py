@@ -1,6 +1,9 @@
+import logging
+logger = logging.getLogger("mahgic")
+
 import os
 import json
-from llm_provider import get_provider
+from providers.llm_provider import get_provider
 
 class DiscoveryEngine:
     def __init__(self):
@@ -27,7 +30,7 @@ class DiscoveryEngine:
         return clean_text
 
     def generate_companies(self, country: str, macro_trends: list) -> list:
-        print(f"\n[*] Discovery Engine: Finding up to 100 companies in {country} aligned with {macro_trends}...")
+        logger.info(f"\n[*] Discovery Engine: Finding up to 100 companies in {country} aligned with {macro_trends}...")
         
         system_instruction = """
         You are an expert financial analyst and stock screener. 
@@ -89,5 +92,5 @@ class DiscoveryEngine:
             else:
                 return []
         except Exception as e:
-            print(f"[!] Error parsing Discovery Engine output: {e}")
+            logger.info(f"[!] Error parsing Discovery Engine output: {e}")
             return []

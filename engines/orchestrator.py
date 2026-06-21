@@ -1,22 +1,25 @@
+import logging
+logger = logging.getLogger("mahgic")
+
 import asyncio
 import argparse
 import os
 
-from macro_brain import MacroBrain
-from discovery_engine import DiscoveryEngine
-from market_brain import MarketBrain
-from llm_provider import get_provider
-from job_scraper import JobBoardScraper
+from brains.macro_brain import MacroBrain
+from engines.discovery_engine import DiscoveryEngine
+from brains.market_brain import MarketBrain
+from providers.llm_provider import get_provider
+from scrapers.job_scraper import JobBoardScraper
 
 async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30):
-    print("="*60)
-    print(f"STARTING AI STOCK BRAIN PIPELINE FOR COUNTRY: {country}")
-    print("="*60)
+    logger.info("="*60)
+    logger.info(f"STARTING AI STOCK BRAIN PIPELINE FOR COUNTRY: {country}")
+    logger.info("="*60)
     
     total_pipeline_tokens = {"prompt": 0, "response": 0, "total": 0}
 
     # PHASE 1: Macro Brain (Economy and Macro Trend Identification)
-    print("\n>>> PHASE 1: MACRO TREND IDENTIFICATION")
+    logger.info("\n>>> PHASE 1: MACRO TREND IDENTIFICATION")
     try:
         macro_brain = MacroBrain()
         macro_result = macro_brain.get_macro_trends()
@@ -28,26 +31,26 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             strategic_keywords = macro_result
             macro_commentary = ""
             macro_sources = []
-        print(f"[+] Derived Strategic Keywords: {strategic_keywords}")
+        logger.info(f"[+] Derived Strategic Keywords: {strategic_keywords}")
     except Exception as e:
-        print(f"[!] Macro Brain failed: {e}")
+        logger.info(f"[!] Macro Brain failed: {e}")
         strategic_keywords = ["Generative AI", "Quantum Computing", "Space Tech"] # fallback
         macro_result = {"trends": strategic_keywords, "commentary": "Fallback", "sources": []}
     # PHASE 1.5: Discovery Engine (Generate 100 Companies)
-    print("\n>>> PHASE 1.5: DISCOVERY ENGINE")
+    logger.info("\n>>> PHASE 1.5: DISCOVERY ENGINE")
     try:
         discovery_engine = DiscoveryEngine()
         discovered_companies = discovery_engine.generate_companies(country, strategic_keywords)
-        print(f"[+] Discovered {len(discovered_companies)} potential companies.")
+        logger.info(f"[+] Discovered {len(discovered_companies)} potential companies.")
         
         # Accumulate tokens
         for k in total_pipeline_tokens:
             total_pipeline_tokens[k] += discovery_engine.total_tokens[k]
     except Exception as e:
-        print(f"[!] Discovery Engine failed: {e}")
+        logger.info(f"[!] Discovery Engine failed: {e}")
         discovered_companies = []
     # PHASE 2 & 3: Market Brain Evaluation & Job Scraper for each ticker
-    print("\n>>> PHASE 2 & 3: EVALUATION & INTENT ANALYSIS")
+    logger.info("\n>>> PHASE 2 & 3: EVALUATION & INTENT ANALYSIS")
     
     provider = get_provider()
     market_brain = MarketBrain(llm_provider=provider, proxycurl_key=proxycurl_key)
@@ -57,13 +60,31 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     hidden_gems_data = {}
     all_scores = {}
     
-    print(f"[*] Processing up to {limit} out of {len(discovered_companies)} tickers for a full end-to-end test...")
+    logger.info(f"[*] Processing up to {limit} out of {len(discovered_companies)} tickers for a full end-to-end test...")
+    
+    import os
+    import json
+    os.makedirs("results_cache", exist_ok=True)
     
     for company in discovered_companies[:limit]:
         if not isinstance(company, dict): continue
         ticker = company.get("ticker")
         if not ticker: continue
-        print(f"\n--- Analyzing {ticker} ---")
+        logger.info(f"\n--- Analyzing {ticker} ---")
+        
+        cache_file = f"results_cache/{ticker}.json"
+        if os.path.exists(cache_file):
+            logger.info(f"[*] Found cached results for {ticker}, skipping analysis.")
+            with open(cache_file, "r") as f:
+                cached = json.load(f)
+            score = cached.get("score", 0)
+            all_scores[ticker] = score
+            if score >= 6:
+                hidden_gems.append(ticker)
+                hidden_gems_data[ticker] = cached.get("data")
+                hidden_gems_thesis[ticker] = cached.get("thesis")
+            continue
+
         try:
             # 1. Financial Evaluation
             data = market_brain.fetch_quarterly_data(ticker)
@@ -71,13 +92,21 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             thesis = market_brain.evaluate(report)
             
             score = 0
+            try:
+                import json
+                import re
+                
+                # Extract JSON using regex in case there's text around it
+                json_match = re.search(r'\{.*\}', thesis.replace('\n', ' '))
+                if json_match:
+                    thesis_json = json.loads(json_match.group(0))
+                    score = int(thesis_json.get("score", 0))
+                    thesis = thesis_json.get("reasoning", thesis)
+            except Exception as e:
+                logger.info(f"[!] Failed to parse JSON score: {e}")
+                
             for line in thesis.split('\n'):
-                if "Hidden Gem Score:" in line:
-                    try:
-                        score = int(line.split(":")[1].strip().split("/")[0])
-                    except:
-                        pass
-                elif "[Token Usage]" in line:
+                if "[Token Usage]" in line:
                     try:
                         parts = line.split("|")
                         total_pipeline_tokens["prompt"] += int(parts[0].split(":")[1].strip())
@@ -86,30 +115,28 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
                     except:
                         pass
             
-            print(f"[+] Extracted Hidden Gem Score: {score}/10")
+            logger.info(f"[+] Extracted Hidden Gem Score: {score}/10")
             all_scores[ticker] = score
             
             if score >= 6:
-                print(f"[*] {ticker} qualifies as a Hidden Gem! Adding to list.")
+                logger.info(f"[*] {ticker} qualifies as a Hidden Gem! Adding to list.")
                 hidden_gems.append(ticker)
                 hidden_gems_data[ticker] = data
                 
-                # 2. Job Board Scraper (Assume a generic URL for now)
+                # 2. Job Board Scraper
                 clean_ticker = ticker.lower().split('.')[0]
-                jobs_url = f"https://careers.{clean_ticker}.com/"
-                print(f"[*] Attempting to scrape job board at: {jobs_url}")
-                scraper = JobBoardScraper(jobs_url)
+                scraper = JobBoardScraper(clean_ticker)
                 try:
                     jobs = await scraper.scrape_jobs()
                     intent = scraper.analyze_strategic_intent(jobs, strategic_keywords)
                 except Exception as e:
-                    print(f"[!] Scraper failed: {e}")
+                    logger.info(f"[!] Scraper failed: {e}")
                     intent = {}
                     
                 matches_found = any(intent.values())
                 if not matches_found:
-                    print(f"[-] No matching strategic roles found for trends: {strategic_keywords}")
-                    print(f"[*] Look, the job scraper didn't return anything relevant, so we are going to build our analysis for this specific stock using the available information.")
+                    logger.info(f"[-] No matching strategic roles found for trends: {strategic_keywords}")
+                    logger.info(f"[*] Look, the job scraper didn't return anything relevant, so we are going to build our analysis for this specific stock using the available information.")
 
                 # Final Phase 3 Structured LLM Analysis
                 structured_prompt = f"""
@@ -130,8 +157,15 @@ Raw Financial Data:
                 final_thesis = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")
                 hidden_gems_thesis[ticker] = final_thesis
                 
+            with open(cache_file, "w") as f:
+                json.dump({
+                    "score": score,
+                    "data": hidden_gems_data.get(ticker),
+                    "thesis": hidden_gems_thesis.get(ticker)
+                }, f)
+                
         except Exception as e:
-            print(f"[!] Analysis for {ticker} failed: {e}")
+            logger.info(f"[!] Analysis for {ticker} failed: {e}")
             all_scores[ticker] = -1
 
 
@@ -149,11 +183,11 @@ Raw Financial Data:
             "limit": limit
         }, f, indent=4)
 
-    print("\n" + "="*60)
-    print(f"PIPELINE COMPLETE.")
-    print(f"Hidden Gems Found: {hidden_gems}")
-    print(f"Total Pipeline Token Usage: {total_pipeline_tokens['total']} tokens")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info(f"PIPELINE COMPLETE.")
+    logger.info(f"Hidden Gems Found: {hidden_gems}")
+    logger.info(f"Total Pipeline Token Usage: {total_pipeline_tokens['total']} tokens")
+    logger.info("="*60)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Stock Brain Orchestrator Wrapper")
@@ -172,10 +206,10 @@ if __name__ == "__main__":
             limit_input = input("How many companies would you like to run the analysis for? (e.g. 100): ")
             limit = int(limit_input)
         except ValueError:
-            print("Invalid input for limit. Defaulting to 100.")
+            logger.info("Invalid input for limit. Defaulting to 100.")
             limit = 100
 
     estimated_tokens = limit * 18000
-    print(f"\n[*] Estimated Token Usage for {limit} companies: ~{estimated_tokens} tokens")
+    logger.info(f"\n[*] Estimated Token Usage for {limit} companies: ~{estimated_tokens} tokens")
 
     asyncio.run(run_pipeline(country, args.proxycurl_key, limit))
