@@ -14,10 +14,14 @@ class JobBoardScraper:
     async def scrape_jobs(self):
         logger.info(f"[*] Finding careers page for {self.company_name}...")
         try:
-            from duckduckgo_search import DDGS
-            results = DDGS().text(f"{self.company_name} careers site", max_results=1)
-            if results and len(results) > 0:
-                self.target_url = results[0]['href']
+            import requests
+            from bs4 import BeautifulSoup
+            from urllib.parse import urlparse, parse_qs
+            res = requests.get(f"https://html.duckduckgo.com/html/?q={self.company_name}+careers+site", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            soup = BeautifulSoup(res.text, 'html.parser')
+            urls = [parse_qs(urlparse(a['href']).query).get('uddg', [''])[0] for a in soup.find_all('a', class_='result__url')]
+            if urls and urls[0]:
+                self.target_url = urls[0]
                 logger.info(f"[*] Found careers URL: {self.target_url}")
             else:
                 logger.info(f"[!] Could not find careers page for {self.company_name}")
@@ -85,17 +89,17 @@ class JobBoardScraper:
         if not any(results.values()):
             logger.info("[*] Direct scraping found no matching roles. Falling back to web search workaround...")
             try:
-                from duckduckgo_search import DDGS
+                import requests
+                from bs4 import BeautifulSoup
                 
                 for kw in keywords:
-                    query = f"{self.company_name} careers {kw}"
-                    search_results = DDGS().text(query, max_results=3)
-                    if search_results:
-                        for res in search_results:
-                            title = res.get('title', '')
-                            # Add the search result if it seems relevant
-                            if title:
-                                results[kw].append(title)
+                    query = f"{self.company_name}+careers+{kw.replace(' ', '+')}"
+                    res = requests.get(f"https://html.duckduckgo.com/html/?q={query}", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                    soup = BeautifulSoup(res.text, 'html.parser')
+                    for a in soup.find_all('a', class_='result__snippet')[:3]:
+                        title = a.get_text(strip=True)
+                        if title:
+                            results[kw].append(title)
             except Exception as e:
                 logger.info(f"[!] Web search fallback failed: {e}")
                 

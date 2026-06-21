@@ -93,6 +93,25 @@ class MarketBrain:
             "Free Cash Flow": safe_extract(q_cashflow, "Free Cash Flow")
         }
         
+        # Currency normalization (Fixes INFY.NS reporting in USD while trading in INR)
+        stock_currency = info.get('currency', 'USD')
+        fin_currency = info.get('financialCurrency', stock_currency)
+        
+        if stock_currency != fin_currency:
+            # Dynamically fetch exchange rate using yfinance
+            try:
+                forex_ticker = f"{fin_currency}{stock_currency}=X"
+                forex_data = yf.Ticker(forex_ticker)
+                rate = forex_data.fast_info.get('lastPrice') or forex_data.info.get('regularMarketPrice', 1.0)
+            except Exception as e:
+                logger.warning(f"Failed to fetch exchange rate for {fin_currency} to {stock_currency}: {e}")
+                rate = 1.0
+
+            if rate != 1.0:
+                logger.info(f"[*] Currency mismatch detected. Converting financials from {fin_currency} to {stock_currency} (Dynamic Rate: {rate})")
+                for key in trends:
+                    trends[key] = [v * rate if v != 0 else 0 for v in trends[key]]
+        
         dates = []
         if q_financials is not None and not q_financials.empty:
             dates = [d.strftime('%Y-%m-%d') for d in q_financials.columns[:8]]
@@ -128,8 +147,19 @@ class MarketBrain:
         trends = data.get("trends", {})
         
         report = f"--- Fundamental Data for {info.get('shortName', data['symbol'])} ({data['symbol']}) ---\n"
+        
+        currency_code = info.get('currency', 'USD')
+        currency_syms = {'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'CHF': 'CHF'}
+        curr = currency_syms.get(currency_code, currency_code + " ")
+        
         report += f"Sector: {info.get('sector')} | Industry: {info.get('industry')}\n"
-        report += f"Market Cap: ${info.get('marketCap', 0)/1e9:.2f}B\n"
+        
+        market_cap = info.get('marketCap', 0)
+        if currency_code in ["INR", "BDT", "PKR", "NPR", "LKR"]:
+            report += f"Market Cap: {curr}{market_cap/1e7:.2f}Cr\n"
+        else:
+            report += f"Market Cap: {curr}{market_cap/1e9:.2f}B\n"
+            
         report += f"Trailing P/E: {info.get('trailingPE')}\n"
         report += f"Forward P/E: {info.get('forwardPE')}\n\n"
         
@@ -155,12 +185,20 @@ class MarketBrain:
             for v in values:
                 if v == 0:
                     formatted_vals.append("N/A")
-                elif abs(v) >= 1e9:
-                    formatted_vals.append(f"${v/1e9:.2f}B")
-                elif abs(v) >= 1e6:
-                    formatted_vals.append(f"${v/1e6:.2f}M")
+                elif currency_code in ["INR", "BDT", "PKR", "NPR", "LKR"]:
+                    if abs(v) >= 1e7:
+                        formatted_vals.append(f"{curr}{v/1e7:.2f}Cr")
+                    elif abs(v) >= 1e5:
+                        formatted_vals.append(f"{curr}{v/1e5:.2f}L")
+                    else:
+                        formatted_vals.append(f"{curr}{v}")
                 else:
-                    formatted_vals.append(f"${v}")
+                    if abs(v) >= 1e9:
+                        formatted_vals.append(f"{curr}{v/1e9:.2f}B")
+                    elif abs(v) >= 1e6:
+                        formatted_vals.append(f"{curr}{v/1e6:.2f}M")
+                    else:
+                        formatted_vals.append(f"{curr}{v}")
             report += f"{key}: {formatted_vals}\n"
             
         return report
@@ -186,6 +224,7 @@ class MarketBrain:
             "2. Valuation: Look at the P/E ratio. If it's extremely high (e.g., > 50), it is likely overvalued and NOT a hidden gem, unless growth is astronomical.\n"
             "3. Profitability: The company must have positive Free Cash Flow and Profit Margins.\n"
             "4. Growth: Revenue growth should be positive. Check the last 8 quarters trend for revenue and net income to ensure it's not declining.\n\n"
+            "When generating your reasoning, format all financial figures using the local currency denominations. NEVER use the words 'Billion' or 'Million'. If the country uses Lakhs and Crores (e.g., India), strictly convert all large numbers to Crores (Cr) and Lakhs (L).\n"
             "Provide a brief, brutal assessment based on the last 8 quarters. You MUST return your output strictly as a JSON object with the following schema: "
             "{\"score\": <int out of 10>, \"reasoning\": \"<your brief brutal assessment>\"}. Do not include markdown formatting or backticks around the JSON."
             f"{wisdom_corpus}"

@@ -5,10 +5,13 @@ import asyncio
 import argparse
 import os
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from brains.macro_brain import MacroBrain
 from engines.discovery_engine import DiscoveryEngine
 from brains.market_brain import MarketBrain
-from brains.sec_brain import SECBrain
+from brains.regulatory_brain import RegulatoryBrain
 from providers.llm_provider import get_provider
 from scrapers.job_scraper import JobBoardScraper
 
@@ -55,7 +58,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     
     provider = get_provider()
     market_brain = MarketBrain(llm_provider=provider, proxycurl_key=proxycurl_key)
-    sec_brain = SECBrain(llm_provider=provider)
+    regulatory_brain = RegulatoryBrain(llm_provider=provider)
     
     hidden_gems = []
     hidden_gems_thesis = {}
@@ -81,7 +84,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
                 cached = json.load(f)
             score = cached.get("score", 0)
             all_scores[ticker] = score
-            if score >= 6:
+            if score >= 7:
                 hidden_gems.append(ticker)
                 hidden_gems_data[ticker] = cached.get("data")
                 hidden_gems_thesis[ticker] = cached.get("thesis")
@@ -92,11 +95,11 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             data = market_brain.fetch_quarterly_data(ticker)
             report = market_brain.generate_report(data)
             
-            # Fetch SEC 10-K Qualitative Insights
-            sec_text = sec_brain.fetch_10k_text(ticker)
-            sec_eval = sec_brain.evaluate_10k(sec_text) if sec_text else "No SEC 10-K data available."
+            # Fetch Regulatory Qualitative Insights
+            reg_text, doc_type = regulatory_brain.fetch_regulatory_text(ticker)
+            reg_eval = regulatory_brain.evaluate_regulatory_text(reg_text, doc_type) if reg_text else f"No {doc_type} data available for automated analysis."
             
-            full_report = report + "\n--- SEC Qualitative Assessment ---\n" + sec_eval
+            full_report = report + f"\n--- {doc_type} Qualitative Assessment ---\n" + reg_eval
             
             # evaluate queries the Wisdom Corpus and returns score/reasoning
             thesis = market_brain.evaluate(full_report)
@@ -128,7 +131,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             logger.info(f"[+] Extracted Hidden Gem Score: {score}/10")
             all_scores[ticker] = score
             
-            if score >= 6:
+            if score >= 7:
                 logger.info(f"[*] {ticker} qualifies as a Hidden Gem! Adding to list.")
                 hidden_gems.append(ticker)
                 hidden_gems_data[ticker] = data
@@ -152,6 +155,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
 You are an expert fundamental value investor and strategic intent analyst.
 Based on the following data for {ticker}, write a 'Hidden Gem Strategic Thesis'.
 Use VERY SIMPLE language that is easy to understand. Do not use complex financial jargon.
+NEVER use the words "Billion" or "Million". For Indian companies, strictly convert and format all large numbers using Crores (Cr) and Lakhs (L).
 
 You must structure your response with these exact sections (use bold headings or bullet points):
 1. **Macro Trends:** Explain what macro trends this company satisfies (e.g., {strategic_keywords}).
@@ -159,13 +163,13 @@ You must structure your response with these exact sections (use bold headings or
 3. **Wisdom Brain Application:** Explain what parts of our Wisdom Corpus are applicable. Make sure to include Ashish Chugh's balance sheet insights (Survival Over Profits, Leading vs Lagging Indicators like Capital Work in Progress, and Cash Flow > P&L).
 4. **Financial Metrics Summary:** Showcase the key financial metrics studied (e.g., P/E ratio, Debt, Cash, Revenue Growth). Use the data provided below to summarize this.
 5. **Leadership Assessment:** List out the C-suite leadership specifically. For each leader, use your internal knowledge and the provided raw data to explain how long they have been at the company and highlight some of their notable career achievements.
-6. **SEC Qualitative Assessment:** Summarize the major risks, headwinds, and management guidance extracted from the 10-K filing.
+6. **Regulatory Qualitative Assessment:** Summarize the major risks, headwinds, and management guidance extracted from the {doc_type} filing (if available).
 
 Raw Financial Data:
 {report}
 
-SEC Qualitative Assessment:
-{sec_eval}
+Regulatory Qualitative Assessment:
+{reg_eval}
 """             
                 final_thesis = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")
                 hidden_gems_thesis[ticker] = final_thesis
@@ -187,7 +191,7 @@ SEC Qualitative Assessment:
         json.dump({
             "country": country,
             "macro_result": macro_result,
-            "discovered_companies": discovered_companies,
+            "discovered_companies": discovered_companies[:limit],
             "hidden_gems": hidden_gems,
             "hidden_gems_thesis": hidden_gems_thesis,
             "hidden_gems_data": hidden_gems_data,

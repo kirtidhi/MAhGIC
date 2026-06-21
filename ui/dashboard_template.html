@@ -13,7 +13,7 @@
             line-height: 1.5;
         }
         .container {
-            max-w-6xl: 1152px;
+            max-width: 1152px;
             margin: 0 auto;
             background-color: #ffffff;
             border-radius: 1rem;
@@ -93,6 +93,10 @@
         marked.use({ breaks: true, gfm: true });
 
         Promise.resolve({}).then(data => {
+            if (!data.macro_result) {
+                document.getElementById('res-phase-1').innerHTML = '<p style="color:red; font-weight:bold;">Error: No data found. You are likely viewing the template file instead of the generated dashboard.html, or the JSON injection failed.</p>';
+                return;
+            }
             // Phase 1
             const macro = data.macro_result;
             let macroHtml = `<p><strong>Trends:</strong> ${macro.trends.join(', ')}</p>`;
@@ -105,12 +109,15 @@
             data.discovered_companies.forEach(c => {
                 let ticker = c.ticker;
                 let score = data.all_scores.hasOwnProperty(ticker) ? data.all_scores[ticker] : 'N/A';
-                let color = score >= 6 ? 'green' : (score > 3 ? '#d97706' : 'red');
+                let color = score >= 7 ? 'green' : (score > 3 ? '#d97706' : 'red');
+                let companyName = c.company_name || c.name || 'Unknown';
+                let description = c.description || 'No description available';
+                let trends = c.trends_matched ? c.trends_matched.join(', ') : 'N/A';
                 scoresHtml += `<tr>
-                    <td><strong>${c.company_name}</strong></td>
+                    <td><strong>${companyName}</strong></td>
                     <td>${ticker}</td>
-                    <td>${c.description}</td>
-                    <td>${c.trends_matched.join(', ')}</td>
+                    <td>${description}</td>
+                    <td>${trends}</td>
                     <td style="color: ${color}; font-weight: bold; font-size: 1.1em;">${score}/10</td>
                 </tr>`;
             });
@@ -118,7 +125,7 @@
             document.getElementById('res-phase-2').innerHTML = scoresHtml || "Evaluation data populated here.";
 
             // Phase 3
-            document.getElementById('res-phase-3').innerHTML = "<p>Strategic intent analysis complete for all companies scoring >= 6.</p>";
+            document.getElementById('res-phase-3').innerHTML = "<p>Strategic intent analysis complete for all companies scoring >= 7.</p>";
 
             // Final
             let finalHtml = "";
@@ -139,7 +146,7 @@
                     finalHtml += `</div>`;
                 });
             } else {
-                finalHtml = "<p>No Hidden Gems found (Score >= 6) based on strict criteria.</p>";
+                finalHtml = "<p>No Hidden Gems found (Score >= 7) based on strict criteria.</p>";
             }
             document.getElementById('res-final').innerHTML = finalHtml;
             
@@ -159,6 +166,29 @@
                             let netIncome = gemData.trends["Net Income"].slice(0, len).reverse();
                             let fcf = gemData.trends["Free Cash Flow"].slice(0, len).reverse();
                             
+                                                        let isSouthAsian = ["India", "Pakistan", "Bangladesh", "Nepal", "Sri Lanka"].includes(data.country);
+                            let isEastAsian = ["Japan", "China", "Taiwan", "South Korea", "Hong Kong"].includes(data.country);
+                            function formatCurrency(val) {
+                                let absVal = Math.abs(val);
+                                let sign = val < 0 ? "-" : "";
+                                if (isSouthAsian) {
+                                    let prefix = sign + "₹";
+                                    if (absVal >= 1e7) return prefix + (absVal/1e7).toFixed(2) + ' Cr';
+                                    if (absVal >= 1e5) return prefix + (absVal/1e5).toFixed(2) + ' L';
+                                    return prefix + absVal;
+                                } else if (isEastAsian) {
+                                    let prefix = sign + "¥";
+                                    if (absVal >= 1e8) return prefix + (absVal/1e8).toFixed(2) + ' Oku/Yi';
+                                    if (absVal >= 1e4) return prefix + (absVal/1e4).toFixed(2) + ' Wan/Man';
+                                    return prefix + absVal;
+                                } else {
+                                    let prefix = sign + "$";
+                                    if (absVal >= 1e9) return prefix + (absVal/1e9).toFixed(2) + 'B';
+                                    if (absVal >= 1e6) return prefix + (absVal/1e6).toFixed(2) + 'M';
+                                    return prefix + absVal;
+                                }
+                            }
+
                             new Chart(ctx.getContext('2d'), {
                                 type: 'line',
                                 data: {
@@ -197,10 +227,7 @@
                                         tooltip: {
                                             callbacks: {
                                                 label: function(context) {
-                                                    let val = context.raw;
-                                                    if (Math.abs(val) >= 1e9) return context.dataset.label + ': $' + (val/1e9).toFixed(2) + 'B';
-                                                    if (Math.abs(val) >= 1e6) return context.dataset.label + ': $' + (val/1e6).toFixed(2) + 'M';
-                                                    return context.dataset.label + ': $' + val;
+                                                    return context.dataset.label + ': ' + formatCurrency(context.raw);
                                                 }
                                             }
                                         }
@@ -209,9 +236,7 @@
                                         y: {
                                             ticks: {
                                                 callback: function(value) {
-                                                    if (Math.abs(value) >= 1e9) return '$' + (value/1e9).toFixed(1) + 'B';
-                                                    if (Math.abs(value) >= 1e6) return '$' + (value/1e6).toFixed(1) + 'M';
-                                                    return '$' + value;
+                                                    return formatCurrency(value);
                                                 }
                                             }
                                         }
