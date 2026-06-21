@@ -8,6 +8,7 @@ import os
 from brains.macro_brain import MacroBrain
 from engines.discovery_engine import DiscoveryEngine
 from brains.market_brain import MarketBrain
+from brains.sec_brain import SECBrain
 from providers.llm_provider import get_provider
 from scrapers.job_scraper import JobBoardScraper
 
@@ -54,6 +55,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     
     provider = get_provider()
     market_brain = MarketBrain(llm_provider=provider, proxycurl_key=proxycurl_key)
+    sec_brain = SECBrain(llm_provider=provider)
     
     hidden_gems = []
     hidden_gems_thesis = {}
@@ -86,10 +88,18 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             continue
 
         try:
-            # 1. Financial Evaluation
+            # 1. Financial and Qualitative SEC Evaluation
             data = market_brain.fetch_quarterly_data(ticker)
             report = market_brain.generate_report(data)
-            thesis = market_brain.evaluate(report)
+            
+            # Fetch SEC 10-K Qualitative Insights
+            sec_text = sec_brain.fetch_10k_text(ticker)
+            sec_eval = sec_brain.evaluate_10k(sec_text) if sec_text else "No SEC 10-K data available."
+            
+            full_report = report + "\n--- SEC Qualitative Assessment ---\n" + sec_eval
+            
+            # evaluate queries the Wisdom Corpus and returns score/reasoning
+            thesis = market_brain.evaluate(full_report)
             
             score = 0
             try:
@@ -138,7 +148,6 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
                     logger.info(f"[-] No matching strategic roles found for trends: {strategic_keywords}")
                     logger.info(f"[*] Look, the job scraper didn't return anything relevant, so we are going to build our analysis for this specific stock using the available information.")
 
-                # Final Phase 3 Structured LLM Analysis
                 structured_prompt = f"""
 You are an expert fundamental value investor and strategic intent analyst.
 Based on the following data for {ticker}, write a 'Hidden Gem Strategic Thesis'.
@@ -150,9 +159,13 @@ You must structure your response with these exact sections (use bold headings or
 3. **Wisdom Brain Application:** Explain what parts of our Wisdom Corpus are applicable. Make sure to include Ashish Chugh's balance sheet insights (Survival Over Profits, Leading vs Lagging Indicators like Capital Work in Progress, and Cash Flow > P&L).
 4. **Financial Metrics Summary:** Showcase the key financial metrics studied (e.g., P/E ratio, Debt, Cash, Revenue Growth). Use the data provided below to summarize this.
 5. **Leadership Assessment:** List out the C-suite leadership specifically. For each leader, use your internal knowledge and the provided raw data to explain how long they have been at the company and highlight some of their notable career achievements.
+6. **SEC Qualitative Assessment:** Summarize the major risks, headwinds, and management guidance extracted from the 10-K filing.
 
 Raw Financial Data:
 {report}
+
+SEC Qualitative Assessment:
+{sec_eval}
 """             
                 final_thesis = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")
                 hidden_gems_thesis[ticker] = final_thesis

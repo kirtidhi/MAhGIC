@@ -12,3 +12,4 @@ python-dotenv
 chromadb
 langchain-text-splitters
 sentence-transformers
+beautifulsoup4
