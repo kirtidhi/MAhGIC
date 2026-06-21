@@ -31,16 +31,12 @@ MA(h)GIC provides two distinct visualization options:
 Ensure you have Python 3.8+ installed. 
 
 ```bash
-# Clone the repository
 git clone https://github.com/kirtidhi/MAhGIC.git
 cd MAhGIC
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Set up environment variables
 cp .env.example .env
-# Edit .env and add your API keys
 ```
 
 ### For AI Agents and CLI Users
@@ -79,10 +75,10 @@ If arguments are missing, the script will attempt to fallback to an interactive 
 
 ## How It Works
 The pipeline executes sequentially:
-1. `macro_brain.py` identifies global trends.
-2. `discovery_engine.py` maps trends to specific tickers.
-3. `market_brain.py` pulls historical financial data and evaluates using the `wisdom_corpus.txt` (via ChromaDB RAG).
-4. `orchestrator.py` structures the final "Hidden Gem Strategic Thesis".
+1. `brains/macro_brain.py` identifies global trends.
+2. `engines/discovery_engine.py` maps trends to specific tickers.
+3. `brains/market_brain.py` pulls historical financial data and evaluates using the `wisdom_corpus.txt` (via ChromaDB RAG).
+4. `engines/orchestrator.py` structures the final "Hidden Gem Strategic Thesis".
 5. `run.py` compiles everything into `ui/dashboard.html`.
 
 ## Roadmap

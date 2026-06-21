@@ -78,7 +78,8 @@ def main():
     from engines import orchestrator
     
     # Run the async pipeline
-    asyncio.run(orchestrator.run_pipeline(country, None, limit))
+    proxycurl_key = os.environ.get("PROXYCURL_API_KEY")
+    asyncio.run(orchestrator.run_pipeline(country, proxycurl_key, limit))
     
     logger.info("\n[*] Injecting results into the HTML Dashboard...")
     try:
