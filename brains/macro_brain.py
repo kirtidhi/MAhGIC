@@ -1,13 +1,16 @@
+import logging
+logger = logging.getLogger("mahgic")
+
 import os
 import json
-from llm_provider import get_provider
+from providers.llm_provider import get_provider
 
 class MacroBrain:
     def __init__(self):
         self.llm = get_provider()
 
     def get_macro_trends(self) -> dict:
-        print("[*] Macro Brain: Analyzing current macro environment and identifying top trends...")
+        logger.info("[*] Macro Brain: Analyzing current macro environment and identifying top trends...")
         
         system_instruction = """
         You are an expert macro-economic and technology trend analyst operating in the year 2026.
@@ -35,7 +38,7 @@ class MacroBrain:
         json_str = ""
         for line in lines:
             if "[Token Usage]" in line:
-                print(f"[Macro Brain] {line.strip()}")
+                logger.info(f"[Macro Brain] {line.strip()}")
                 continue
             # Strip markdown if the LLM hallucinated it
             if line.startswith("```"):
@@ -47,14 +50,14 @@ class MacroBrain:
             if isinstance(result, dict) and "trends" in result:
                 return result
             else:
-                print("[!] Macro Brain returned unexpected format. Using fallback.")
+                logger.info("[!] Macro Brain returned unexpected format. Using fallback.")
                 return {"trends": ["Generative AI", "Energy Transition"], "commentary": "Fallback commentary.", "sources": ["Fallback Source"]}
         except Exception as e:
-            print(f"[!] Error parsing Macro Brain output: {e}")
-            print(f"Raw output: {response_text}")
+            logger.info(f"[!] Error parsing Macro Brain output: {e}")
+            logger.info(f"Raw output: {response_text}")
             return {"trends": ["Generative AI", "Energy Transition"], "commentary": "Error parsing output.", "sources": ["None"]}
 
 if __name__ == "__main__":
     brain = MacroBrain()
     trends = brain.get_macro_trends()
-    print("Identified Macro Trends:", trends)
+    logger.info("Identified Macro Trends:", trends)

@@ -1,9 +1,62 @@
+import logging
+logger = logging.getLogger("mahgic")
+
 import yfinance as yf
 import pandas as pd
 import json
 import os
 import argparse
-from llm_provider import get_provider
+from providers.llm_provider import get_provider
+
+from providers.llm_provider import get_provider
+
+class WisdomRAG:
+    _instance = None
+    
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = WisdomRAG()
+        return cls._instance
+        
+    def __init__(self):
+        import chromadb
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        import warnings
+        warnings.filterwarnings("ignore")
+        
+        self.chroma_client = chromadb.PersistentClient(path=os.path.join(os.path.dirname(__file__), "chroma_db"))
+        self.collection = self.chroma_client.get_or_create_collection(name="wisdom")
+        
+        if self.collection.count() == 0:
+            logger.info("[*] Initializing Wisdom RAG Database...")
+            wisdom_path = os.path.join(os.path.dirname(__file__), "wisdom_corpus.txt")
+            if os.path.exists(wisdom_path):
+                with open(wisdom_path, "r") as f:
+                    text = f.read()
+                
+                splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+                chunks = splitter.split_text(text)
+                
+                self.collection.add(
+                    documents=chunks,
+                    ids=[f"chunk_{i}" for i in range(len(chunks))]
+                )
+                logger.info(f"[+] Added {len(chunks)} wisdom chunks to DB.")
+            else:
+                logger.info("[!] wisdom_corpus.txt not found.")
+                
+    def query(self, text: str, k=3) -> str:
+        if self.collection.count() == 0:
+            return ""
+        results = self.collection.query(
+            query_texts=[text],
+            n_results=k
+        )
+        if results and results['documents']:
+            docs = results['documents'][0]
+            return "\n\n".join(docs)
+        return ""
 
 # ==========================================
 # Market Brain Core
@@ -14,7 +67,7 @@ class MarketBrain:
         self.proxycurl_key = proxycurl_key
 
     def fetch_quarterly_data(self, ticker_symbol: str) -> dict:
-        print(f"Fetching last 8 quarters of data for {ticker_symbol}...")
+        logger.info(f"Fetching last 8 quarters of data for {ticker_symbol}...")
         ticker = yf.Ticker(ticker_symbol)
         
         try:
@@ -57,7 +110,7 @@ class MarketBrain:
         if not self.proxycurl_key:
             return ""
             
-        print(f"[*] Proxycurl Key detected. Attempting to fetch LinkedIn data for {officer_name}...")
+        logger.info(f"[*] Proxycurl Key detected. Attempting to fetch LinkedIn data for {officer_name}...")
         import requests
         # NOTE: A real implementation would first search for the profile URL, then query the profile endpoint.
         # This is a stubbed integration for the GitHub repository.
@@ -118,9 +171,13 @@ class MarketBrain:
             
         import os
         wisdom_corpus = ""
-        if os.path.exists("wisdom_corpus.txt"):
-            with open("wisdom_corpus.txt", "r") as f:
-                wisdom_corpus = f"\n\n--- MENTAL MODELS & WISDOM CORPUS ---\n{f.read()}\n"
+        try:
+            rag = WisdomRAG.get_instance()
+            relevant_wisdom = rag.query(report_text, k=3)
+            if relevant_wisdom:
+                wisdom_corpus = f"\n\n--- MENTAL MODELS & WISDOM CORPUS (Relevant Extracts) ---\n{relevant_wisdom}\n"
+        except Exception as e:
+            logger.info(f"[!] RAG Query failed: {e}")
 
         system_instruction = (
             "You are an expert fundamental value investor. Your goal is to identify 'Hidden Gems'.\n"
@@ -129,11 +186,12 @@ class MarketBrain:
             "2. Valuation: Look at the P/E ratio. If it's extremely high (e.g., > 50), it is likely overvalued and NOT a hidden gem, unless growth is astronomical.\n"
             "3. Profitability: The company must have positive Free Cash Flow and Profit Margins.\n"
             "4. Growth: Revenue growth should be positive. Check the last 8 quarters trend for revenue and net income to ensure it's not declining.\n\n"
-            "Provide a brief, brutal assessment based on the last 8 quarters. Conclude with a 'Hidden Gem Score' out of 10."
+            "Provide a brief, brutal assessment based on the last 8 quarters. You MUST return your output strictly as a JSON object with the following schema: "
+            "{\"score\": <int out of 10>, \"reasoning\": \"<your brief brutal assessment>\"}. Do not include markdown formatting or backticks around the JSON."
             f"{wisdom_corpus}"
         )
         
-        print("Running AI Evaluation...")
+        logger.info("Running AI Evaluation...")
         return self.llm.generate(prompt=report_text, system_instruction=system_instruction)
 
 
@@ -148,7 +206,7 @@ def main():
     try:
         provider = get_provider()
     except Exception as e:
-        print(f"WARNING: {e}. Proceeding without AI analysis.")
+        logger.info(f"WARNING: {e}. Proceeding without AI analysis.")
         provider = None
 
     brain = MarketBrain(llm_provider=provider)
@@ -156,12 +214,12 @@ def main():
     data = brain.fetch_quarterly_data(args.ticker)
     report = brain.generate_report(data)
     
-    print("\n" + report)
+    logger.info("\n" + report)
     
     if provider:
-        print("\n" + "="*40 + "\nAI ANALYSIS THESIS\n" + "="*40)
+        logger.info("\n" + "="*40 + "\nAI ANALYSIS THESIS\n" + "="*40)
         analysis = brain.evaluate(report)
-        print(analysis)
+        logger.info(analysis)
 
 if __name__ == "__main__":
     main()

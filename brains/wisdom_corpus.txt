@@ -708,4 +708,3 @@ Rather than relying on standard financial ratios—which only highlight stocks t
 *   **The Art of Selling:** Selling is a staggered process that can take years. Sell winners primarily when you need capital to fund a *new*, better opportunity—not just because the current stock has gone up.
 *   **Stock Price vs. Business Performance:** Distinguish between the two. The optimal time to buy more is when the *business* is visibly improving, but the *stock price* is lagging due to broader market apathy.
 
-[Token Usage] Prompt: 18742 | Response: 1164 | Total: 21689
