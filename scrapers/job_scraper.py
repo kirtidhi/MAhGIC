@@ -1,14 +1,32 @@
+import logging
+logger = logging.getLogger("mahgic")
+
 import asyncio
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 import argparse
 
 class JobBoardScraper:
-    def __init__(self, target_url: str):
-        self.target_url = target_url
+    def __init__(self, company_name: str):
+        self.company_name = company_name
+        self.target_url = None
 
     async def scrape_jobs(self):
-        print(f"[*] Navigating to {self.target_url}...")
+        logger.info(f"[*] Finding careers page for {self.company_name}...")
+        try:
+            from duckduckgo_search import DDGS
+            results = DDGS().text(f"{self.company_name} careers site", max_results=1)
+            if results and len(results) > 0:
+                self.target_url = results[0]['href']
+                logger.info(f"[*] Found careers URL: {self.target_url}")
+            else:
+                logger.info(f"[!] Could not find careers page for {self.company_name}")
+                return []
+        except Exception as e:
+            logger.info(f"[!] DuckDuckGo search failed: {e}")
+            return []
+
+        logger.info(f"[*] Navigating to {self.target_url}...")
         jobs = []
         try:
             async with async_playwright() as p:
@@ -46,7 +64,7 @@ class JobBoardScraper:
                                 jobs.append(title)
                                 
         except Exception as e:
-            print(f"[!] Error scraping {self.target_url}: {e}")
+            logger.info(f"[!] Error scraping {self.target_url}: {e}")
 
         return jobs
 
@@ -65,15 +83,12 @@ class JobBoardScraper:
                     results[kw].append(job)
                     
         if not any(results.values()):
-            print("[*] Direct scraping found no matching roles. Falling back to web search workaround...")
+            logger.info("[*] Direct scraping found no matching roles. Falling back to web search workaround...")
             try:
-                from ddgs import DDGS
-                from urllib.parse import urlparse
-                domain = urlparse(self.target_url).netloc
-                domain = domain.replace("careers.", "") # broaden search
+                from duckduckgo_search import DDGS
                 
                 for kw in keywords:
-                    query = f"site:{domain} careers {kw}"
+                    query = f"{self.company_name} careers {kw}"
                     search_results = DDGS().text(query, max_results=3)
                     if search_results:
                         for res in search_results:
@@ -82,38 +97,38 @@ class JobBoardScraper:
                             if title:
                                 results[kw].append(title)
             except Exception as e:
-                print(f"[!] Web search fallback failed: {e}")
+                logger.info(f"[!] Web search fallback failed: {e}")
                 
         return results
 
 async def main():
     parser = argparse.ArgumentParser(description="Job Board Scraper for Strategic Intent")
-    parser.add_argument("--url", required=True, help="URL of the company's job board")
+    parser.add_argument("--company", required=True, help="Name of the company")
     parser.add_argument("--keywords", nargs="+", default=["AI", "Machine Learning", "Data", "Automation", "Engineer", "Cloud"], help="Keywords to look for")
     args = parser.parse_args()
 
-    scraper = JobBoardScraper(args.url)
+    scraper = JobBoardScraper(args.company)
     jobs = await scraper.scrape_jobs()
     
-    print(f"\n--- Scraped {len(jobs)} potential job postings ---")
+    logger.info(f"\n--- Scraped {len(jobs)} potential job postings ---")
     if jobs:
-        print("Sample jobs:")
+        logger.info("Sample jobs:")
         for j in jobs[:10]:
-            print(f" - {j}")
+            logger.info(f" - {j}")
             
-    print(f"\n--- Strategic Intent Analysis (Keywords: {', '.join(args.keywords)}) ---")
+    logger.info(f"\n--- Strategic Intent Analysis (Keywords: {', '.join(args.keywords)}) ---")
     intent = scraper.analyze_strategic_intent(jobs, args.keywords)
     
     matches_found = False
     for kw, matched_jobs in intent.items():
         if matched_jobs:
             matches_found = True
-            print(f"\n[{kw}] roles found ({len(matched_jobs)}):")
+            logger.info(f"\n[{kw}] roles found ({len(matched_jobs)}):")
             for j in matched_jobs[:5]:
-                print(f"  * {j}")
+                logger.info(f"  * {j}")
                 
     if not matches_found:
-        print("\nNo matching strategic roles found based on the provided keywords.")
+        logger.info("\nNo matching strategic roles found based on the provided keywords.")
 
 if __name__ == "__main__":
     asyncio.run(main())
