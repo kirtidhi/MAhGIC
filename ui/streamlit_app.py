@@ -7,7 +7,7 @@ st.set_page_config(layout="wide", page_title="AI Stock Brain Dashboard", page_ic
 st.title("🧠 AI Stock Brain: Hidden Gems Dashboard")
 
 try:
-    with open('/usr/local/google/home/kid/ai_stock_brain/results.json', 'r') as f:
+    with open('results.json', 'r') as f:
         data = json.load(f)
 except Exception:
     st.error("No results.json found. Run orchestrator.py first.")
