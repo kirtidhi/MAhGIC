@@ -102,7 +102,12 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             
             # Fetch Regulatory Qualitative Insights
             reg_text, doc_type = regulatory_brain.fetch_regulatory_text(ticker)
-            reg_eval = regulatory_brain.evaluate_regulatory_text(reg_text, doc_type) if reg_text else f"No {doc_type} data available for automated analysis."
+            if reg_text:
+                reg_eval, reg_tokens = regulatory_brain.evaluate_regulatory_text(reg_text, doc_type)
+                for k in total_pipeline_tokens:
+                    total_pipeline_tokens[k] += reg_tokens.get(k, 0)
+            else:
+                reg_eval = f"No {doc_type} data available for automated analysis."
             
             full_report = report + f"\n--- {doc_type} Qualitative Assessment ---\n" + reg_eval
             
@@ -153,7 +158,7 @@ NEVER use the words "Billion" or "Million". For Indian companies, strictly conve
 
 You must structure your response with these exact sections (use bold headings or bullet points):
 1. **Macro Trends:** Explain what macro trends this company satisfies (e.g., {strategic_keywords}).
-2. **Job Postings / Strategic Intent:** Detail what job postings we found (if any) or other strategic moves that enforce our analysis of these macro trends. Jobs found: {intent}
+2. **Job Postings / Strategic Intent:** Detail what job postings we found (if any) or other strategic moves that enforce our analysis of these macro trends. Jobs found: {json.dumps(intent, indent=2)}
 3. **Wisdom Brain Application:** Explain what parts of our Wisdom Corpus are applicable. Make sure to include Ashish Chugh's balance sheet insights (Survival Over Profits, Leading vs Lagging Indicators like Capital Work in Progress, and Cash Flow > P&L).
 4. **Financial Metrics Summary:** Showcase the key financial metrics studied (e.g., P/E ratio, Debt, Cash, Revenue Growth). Use the data provided below to summarize this.
 5. **Leadership Assessment:** List out the C-suite leadership specifically. For each leader, use your internal knowledge and the provided raw data to explain how long they have been at the company and highlight some of their notable career achievements.

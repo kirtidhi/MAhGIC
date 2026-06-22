@@ -8,7 +8,6 @@ from providers.llm_provider import get_provider
 class DiscoveryEngine:
     def __init__(self):
         self.llm = get_provider()
-        self.total_tokens = {"prompt": 0, "response": 0, "total": 0}
 
 
 
@@ -71,16 +70,23 @@ class DiscoveryEngine:
             tickers = json.loads(json_str.strip())
             if isinstance(tickers, list):
                 import yfinance as yf
-                valid_tickers = []
-                for company in tickers:
+                from concurrent.futures import ThreadPoolExecutor
+                
+                def is_valid(company):
                     ticker = company.get("ticker")
-                    if ticker:
-                        try:
-                            info = yf.Ticker(ticker).fast_info
-                            if info.get("lastPrice") is not None:
-                                valid_tickers.append(company)
-                        except:
-                            pass
+                    if not ticker: return None
+                    try:
+                        info = yf.Ticker(ticker).fast_info
+                        if info.get("lastPrice") is not None:
+                            return company
+                    except:
+                        pass
+                    return None
+
+                with ThreadPoolExecutor(max_workers=10) as ex:
+                    results = list(ex.map(is_valid, tickers))
+                
+                valid_tickers = [r for r in results if r]
                 return valid_tickers, token_dict
             else:
                 return [], token_dict

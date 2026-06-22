@@ -260,7 +260,7 @@ def main():
     
     if provider:
         logger.info("\n" + "="*40 + "\nAI ANALYSIS THESIS\n" + "="*40)
-        analysis = brain.evaluate(report)
+        analysis, token_dict = brain.evaluate(report)
         logger.info(analysis)
 
 if __name__ == "__main__":

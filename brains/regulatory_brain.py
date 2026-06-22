@@ -126,11 +126,11 @@ class RegulatoryBrain:
             logger.info(f"[!] {doc_type} fetch error for {ticker_symbol}: {e}")
             return "", doc_type
 
-    def evaluate_regulatory_text(self, text: str, doc_type: str) -> str:
+    def evaluate_regulatory_text(self, text: str, doc_type: str) -> tuple[str, dict]:
         if not self.llm:
-            return "No LLM provider configured."
+            return "No LLM provider configured.", {"prompt": 0, "response": 0, "total": 0}
         if not text:
-            return f"No {doc_type} data available for automated analysis."
+            return f"No {doc_type} data available for automated analysis.", {"prompt": 0, "response": 0, "total": 0}
             
         system_instruction = (
             "You are an expert fundamental value investor. "
@@ -144,7 +144,7 @@ class RegulatoryBrain:
         )
         
         logger.info(f"[*] Running AI Evaluation on {doc_type}...")
-        return self.llm.generate(prompt=text, system_instruction=system_instruction)[0]
+        return self.llm.generate(prompt=text, system_instruction=system_instruction)
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -168,7 +168,7 @@ def main():
     
     if text and provider:
         logger.info("\n" + "="*40 + f"\n{doc_type.upper()} QUALITATIVE ANALYSIS\n" + "="*40)
-        analysis = brain.evaluate_regulatory_text(text, doc_type)
+        analysis, token_dict = brain.evaluate_regulatory_text(text, doc_type)
         logger.info(analysis)
 
 if __name__ == "__main__":

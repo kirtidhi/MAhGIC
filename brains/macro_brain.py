@@ -13,11 +13,10 @@ class MacroBrain:
         logger.info("[*] Macro Brain: Analyzing current macro environment and identifying top trends...")
         
         system_instruction = """
-        You are an expert macro-economic and technology trend analyst operating in the year 2026.
+        You are an expert macro-economic and technology trend analyst.
         Identify the top 3 to 5 most significant current and near-future macro trends that are driving investment and hiring across all sectors (e.g., Technology, Health, Finance, Energy, Manufacturing).
 
-        CRITICAL INSTRUCTION: You MUST ONLY use data, reports, and perspectives from the year 2026. DO NOT use or reference anything from 2025 or earlier.
-        Please explicitly consider sources such as the Harvard Business Review (HBR) and the 2026 Mary Meeker State of the Internet report (if it exists).
+        Use the most current information available to you. If you are uncertain about recent data, state that.
         
         Return the result as a raw JSON object with the following structure:
         {
@@ -57,4 +56,4 @@ class MacroBrain:
 if __name__ == "__main__":
     brain = MacroBrain()
     trends = brain.get_macro_trends()
-    logger.info("Identified Macro Trends:", trends)
+    logger.info(f"Identified Macro Trends: {trends}")

@@ -1,4 +1,4 @@
-google-genai
+google-genai>=1.0.0
 yfinance
 beautifulsoup4
 streamlit
@@ -8,8 +8,8 @@ playwright
 openai
 anthropic
 python-dotenv
-chromadb
-langchain-text-splitters
+chromadb>=0.5.0
+langchain-text-splitters>=0.2.0
 # sentence-transformers is an implicit dependency for ChromaDB embeddings
 sentence-transformers
 pypdf

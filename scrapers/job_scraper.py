@@ -5,6 +5,9 @@ import asyncio
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 import argparse
+import requests
+import re
+from urllib.parse import urlparse, parse_qs
 
 class JobBoardScraper:
     def __init__(self, company_name: str):
@@ -14,9 +17,6 @@ class JobBoardScraper:
     async def scrape_jobs(self):
         logger.info(f"[*] Finding careers page for {self.company_name}...")
         try:
-            import requests
-            from bs4 import BeautifulSoup
-            from urllib.parse import urlparse, parse_qs
             res = requests.get(f"https://html.duckduckgo.com/html/?q={self.company_name}+careers+site", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
             soup = BeautifulSoup(res.text, 'html.parser')
             urls = [parse_qs(urlparse(a['href']).query).get('uddg', [''])[0] for a in soup.find_all('a', class_='result__url')]
@@ -79,7 +79,6 @@ class JobBoardScraper:
         """
         results = {kw: [] for kw in keywords}
         
-        import re
         for job in jobs:
             job_lower = job.lower()
             for kw in keywords:
@@ -89,9 +88,6 @@ class JobBoardScraper:
         if not any(results.values()):
             logger.info("[*] Direct scraping found no matching roles. Falling back to web search workaround...")
             try:
-                import requests
-                from bs4 import BeautifulSoup
-                
                 for kw in keywords:
                     query = f"{self.company_name}+careers+{kw.replace(' ', '+')}"
                     res = requests.get(f"https://html.duckduckgo.com/html/?q={query}", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
