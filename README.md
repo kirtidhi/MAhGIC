@@ -35,6 +35,7 @@ git clone https://github.com/kirtidhi/MAhGIC.git
 cd MAhGIC
 
 pip install -r requirements.txt
+playwright install chromium
 
 cp .env.example .env
 ```

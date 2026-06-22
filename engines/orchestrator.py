@@ -73,7 +73,8 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     
     logger.info(f"[*] Processing up to {limit} out of {len(discovered_companies)} tickers for a full end-to-end test...")
     
-    os.makedirs("results_cache", exist_ok=True)
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+    os.makedirs(os.path.join(BASE_DIR, "results_cache"), exist_ok=True)
     
     for company in discovered_companies[:limit]:
         if not isinstance(company, dict): continue
@@ -82,7 +83,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
         if not ticker: continue
         logger.info(f"\n--- Analyzing {ticker} ---")
         
-        cache_file = f"results_cache/{ticker}.json"
+        cache_file = os.path.join(BASE_DIR, f"results_cache/{ticker}.json")
         if os.path.exists(cache_file):
             logger.info(f"[*] Found cached results for {ticker}, skipping analysis.")
             with open(cache_file, "r") as f:
@@ -191,7 +192,7 @@ Regulatory Qualitative Assessment:
         await asyncio.sleep(0.5)
 
 
-    with open("results.json", "w") as f:
+    with open(os.path.join(BASE_DIR, "results.json"), "w") as f:
         json.dump({
             "country": country,
             "macro_result": macro_result,

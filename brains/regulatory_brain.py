@@ -11,8 +11,9 @@ logger = logging.getLogger("mahgic")
 class RegulatoryBrain:
     def __init__(self, llm_provider=None):
         self.llm = llm_provider
+        contact_email = os.environ.get("CONTACT_EMAIL", "mahgic-bot@example.com")
         self.headers = {
-            "User-Agent": "MAhGIC Analysis (mahgic-bot@example.com)"
+            "User-Agent": f"MAhGIC Analysis ({contact_email})"
         }
 
     def get_document_type(self, ticker_symbol: str) -> str:

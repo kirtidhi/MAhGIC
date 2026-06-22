@@ -68,28 +68,45 @@ class DiscoveryEngine:
             
         try:
             tickers = json.loads(json_str.strip())
-            if isinstance(tickers, list):
-                import yfinance as yf
-                from concurrent.futures import ThreadPoolExecutor
-                
-                def is_valid(company):
-                    ticker = company.get("ticker")
-                    if not ticker: return None
-                    try:
-                        info = yf.Ticker(ticker).fast_info
-                        if info.get("lastPrice") is not None:
-                            return company
-                    except:
-                        pass
-                    return None
-
-                with ThreadPoolExecutor(max_workers=10) as ex:
-                    results = list(ex.map(is_valid, tickers))
-                
-                valid_tickers = [r for r in results if r]
-                return valid_tickers, token_dict
-            else:
-                return [], token_dict
         except Exception as e:
-            logger.info(f"[!] Error parsing Discovery Engine output: {e}")
+            logger.info(f"[!] Error parsing Discovery Engine output: {e}. Retrying with smaller batch (50)...")
+            retry_prompt = prompt.replace("EXACTLY 100", "EXACTLY 50").replace("hit 100", "hit 50")
+            retry_response, retry_tokens = self.llm.generate(retry_prompt, system_instruction)
+            
+            for k in token_dict:
+                token_dict[k] += retry_tokens.get(k, 0)
+                
+            json_str = ""
+            for line in retry_response.split('\n'):
+                if line.startswith("```"):
+                    continue
+                json_str += line + "\n"
+                
+            try:
+                tickers = json.loads(json_str.strip())
+            except Exception as e2:
+                logger.info(f"[!] Error parsing Discovery Engine retry output: {e2}")
+                return [], token_dict
+
+        if isinstance(tickers, list):
+            import yfinance as yf
+            from concurrent.futures import ThreadPoolExecutor
+            
+            def is_valid(company):
+                ticker = company.get("ticker")
+                if not ticker: return None
+                try:
+                    info = yf.Ticker(ticker).fast_info
+                    if info.get("lastPrice") is not None:
+                        return company
+                except:
+                    pass
+                return None
+
+            with ThreadPoolExecutor(max_workers=10) as ex:
+                results = list(ex.map(is_valid, tickers))
+            
+            valid_tickers = [r for r in results if r]
+            return valid_tickers, token_dict
+        else:
             return [], token_dict

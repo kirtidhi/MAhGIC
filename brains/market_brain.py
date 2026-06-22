@@ -206,11 +206,10 @@ class MarketBrain:
             
         return report
 
-    def evaluate(self, report_text: str) -> str:
+    def evaluate(self, report_text: str) -> tuple[str, dict]:
         if not self.llm:
-            return "No LLM provider configured. Returning raw data only."
+            return "No LLM provider configured. Returning raw data only.", {"prompt": 0, "response": 0, "total": 0}
             
-        import os
         wisdom_corpus = ""
         try:
             rag = WisdomRAG.get_instance()
