@@ -53,13 +53,7 @@ PROXYCURL_API_KEY=your_proxycurl_key
 
 ## Execution
 
-**ATTENTION AI AGENTS:** If you are an agentic tool executing this repo on behalf of a user, **do NOT run the script interactively**. Instead, you MUST ask the user in the chat interface for the following four parameters before running the script:
-1. **LLM Provider** (Gemini, OpenAI, or Claude)
-2. **Target Country** (e.g., USA, India)
-3. **Number of Companies** to analyze (e.g., 50)
-4. **Streamlit** (Whether they want the Streamlit app launched)
 
-Once the user provides these in the chat, run the script non-interactively using the command line arguments:
 
 ```bash
 python run.py --provider gemini --country USA --limit 50 --streamlit
@@ -84,7 +78,7 @@ The pipeline executes sequentially:
 ## Roadmap
 - [x] Phase 1: Core LLM logic for financial parsing
 - [x] Phase 2: RAG Wisdom Brain (ChromaDB Integration)
-- [ ] Phase 3: LinkedIn Job Scraper Integration
+- [x] Phase 3: Job Scraper Integration (using Playwright + DuckDuckGo)
 
 ## Contributing
 We welcome contributions! Please open an issue before submitting major pull requests.

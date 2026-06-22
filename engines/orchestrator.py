@@ -171,7 +171,7 @@ Raw Financial Data:
 Regulatory Qualitative Assessment:
 {reg_eval}
 """             
-                final_thesis = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")
+                final_thesis = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")[0]
                 hidden_gems_thesis[ticker] = final_thesis
                 
             with open(cache_file, "w") as f:
@@ -184,6 +184,8 @@ Regulatory Qualitative Assessment:
         except Exception as e:
             logger.info(f"[!] Analysis for {ticker} failed: {e}")
             all_scores[ticker] = -1
+            
+        await asyncio.sleep(0.5)
 
 
     import json
@@ -206,7 +208,9 @@ Regulatory Qualitative Assessment:
     logger.info(f"Total Pipeline Token Usage: {total_pipeline_tokens['total']} tokens")
     logger.info("="*60)
 
+# For standalone testing only. Please use run.py to drive the pipeline.
 if __name__ == "__main__":
+    logger.warning("You are running orchestrator.py directly. This is for testing. Prefer running run.py instead.")
     parser = argparse.ArgumentParser(description="AI Stock Brain Orchestrator Wrapper")
     parser.add_argument("--country", required=False, help="Target country for stock discovery")
     parser.add_argument("--proxycurl-key", type=str, default=None, help="Optional Proxycurl API key to fetch deep LinkedIn management data")

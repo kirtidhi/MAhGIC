@@ -31,7 +31,7 @@ class MacroBrain:
         
         prompt = "What are the top technological and economic macro trends right now? Output the JSON object."
         
-        response_text = self.llm.generate(prompt, system_instruction)
+        response_text = self.llm.generate(prompt, system_instruction)[0]
         
         # Clean up the response to extract just the JSON
         lines = response_text.split('\n')

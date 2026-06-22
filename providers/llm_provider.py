@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class LLMProvider(ABC):
     @abstractmethod
-    def generate(self, prompt: str, system_instruction: str) -> str:
+    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
         pass
 
 class GeminiProvider(LLMProvider):
@@ -14,7 +14,7 @@ class GeminiProvider(LLMProvider):
         except ImportError:
             raise ImportError("Please install google-genai: pip install google-genai")
         
-    def generate(self, prompt: str, system_instruction: str) -> str:
+    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
         try:
             response = self.client.models.generate_content(
                 model='gemini-3.1-pro-preview',
@@ -26,11 +26,11 @@ class GeminiProvider(LLMProvider):
             
             # Extract token usage
             usage = response.usage_metadata
-            token_info = f"\n[Token Usage] Prompt: {usage.prompt_token_count} | Response: {usage.candidates_token_count} | Total: {usage.total_token_count}"
+            token_info = {"prompt": usage.prompt_token_count, "response": usage.candidates_token_count, "total": usage.total_token_count}
             
-            return response.text + "\n" + token_info
+            return response.text, token_info
         except Exception as e:
-            return f"Error connecting to Gemini: {e}"
+            return f"Error connecting to Gemini: {e}", {}
 
 class OpenAIProvider(LLMProvider):
     def __init__(self, api_key: str):
@@ -40,7 +40,7 @@ class OpenAIProvider(LLMProvider):
         except ImportError:
             raise ImportError("Please install openai: pip install openai")
         
-    def generate(self, prompt: str, system_instruction: str) -> str:
+    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -50,10 +50,10 @@ class OpenAIProvider(LLMProvider):
                 ]
             )
             usage = response.usage
-            token_info = f"\n[Token Usage] Prompt: {usage.prompt_tokens} | Response: {usage.completion_tokens} | Total: {usage.total_tokens}"
-            return response.choices[0].message.content + token_info
+            token_info = {"prompt": usage.prompt_tokens, "response": usage.completion_tokens, "total": usage.total_tokens}
+            return response.choices[0].message.content, token_info
         except Exception as e:
-            return f"Error connecting to OpenAI: {e}"
+            return f"Error connecting to OpenAI: {e}", {}
 
 class ClaudeProvider(LLMProvider):
     def __init__(self, api_key: str):
@@ -63,10 +63,10 @@ class ClaudeProvider(LLMProvider):
         except ImportError:
             raise ImportError("Please install anthropic: pip install anthropic")
         
-    def generate(self, prompt: str, system_instruction: str) -> str:
+    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-6",
                 max_tokens=4096,
                 system=system_instruction,
                 messages=[
@@ -74,10 +74,10 @@ class ClaudeProvider(LLMProvider):
                 ]
             )
             usage = response.usage
-            token_info = f"\n[Token Usage] Prompt: {usage.input_tokens} | Response: {usage.output_tokens} | Total: {usage.input_tokens + usage.output_tokens}"
-            return response.content[0].text + token_info
+            token_info = {"prompt": usage.input_tokens, "response": usage.output_tokens, "total": usage.input_tokens + usage.output_tokens}
+            return response.content[0].text, token_info
         except Exception as e:
-            return f"Error connecting to Claude: {e}"
+            return f"Error connecting to Claude: {e}", {}
 
 def get_provider() -> LLMProvider:
     import os

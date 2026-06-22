@@ -8,15 +8,18 @@ import os
 import argparse
 from providers.llm_provider import get_provider
 
-from providers.llm_provider import get_provider
+import threading
 
 class WisdomRAG:
     _instance = None
+    _lock = threading.Lock()
     
     @classmethod
     def get_instance(cls):
         if cls._instance is None:
-            cls._instance = WisdomRAG()
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = WisdomRAG()
         return cls._instance
         
     def __init__(self):
@@ -231,7 +234,7 @@ class MarketBrain:
         )
         
         logger.info("Running AI Evaluation...")
-        return self.llm.generate(prompt=report_text, system_instruction=system_instruction)
+        return self.llm.generate(prompt=report_text, system_instruction=system_instruction)[0]
 
 
 def main():

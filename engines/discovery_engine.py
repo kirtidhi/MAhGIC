@@ -76,7 +76,7 @@ class DiscoveryEngine:
         ]
         """
         
-        response_text = self.llm.generate(prompt, system_instruction)
+        response_text = self.llm.generate(prompt, system_instruction)[0]
         clean_text = self._parse_token_usage(response_text)
         
         json_str = ""
@@ -88,7 +88,18 @@ class DiscoveryEngine:
         try:
             tickers = json.loads(json_str.strip())
             if isinstance(tickers, list):
-                return tickers
+                import yfinance as yf
+                valid_tickers = []
+                for company in tickers:
+                    ticker = company.get("ticker")
+                    if ticker:
+                        try:
+                            info = yf.Ticker(ticker).fast_info
+                            if info.get("lastPrice") is not None:
+                                valid_tickers.append(company)
+                        except:
+                            pass
+                return valid_tickers
             else:
                 return []
         except Exception as e:

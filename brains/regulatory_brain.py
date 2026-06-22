@@ -12,7 +12,7 @@ class RegulatoryBrain:
     def __init__(self, llm_provider=None):
         self.llm = llm_provider
         self.headers = {
-            "User-Agent": "MAhGIC Analysis (mahgic@example.com)"
+            "User-Agent": "MAhGIC Analysis (mahgic-real@google.com)"
         }
 
     def get_document_type(self, ticker_symbol: str) -> str:
@@ -89,7 +89,7 @@ class RegulatoryBrain:
         )
         
         logger.info(f"[*] Running AI Evaluation on {doc_type}...")
-        return self.llm.generate(prompt=text, system_instruction=system_instruction)
+        return self.llm.generate(prompt=text, system_instruction=system_instruction)[0]
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")

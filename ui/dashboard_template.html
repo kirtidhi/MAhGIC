@@ -92,7 +92,8 @@
         // Set marked options to handle line breaks better
         marked.use({ breaks: true, gfm: true });
 
-        Promise.resolve({}).then(data => {
+        const DATA_PLACEHOLDER = null;
+        Promise.resolve(DATA_PLACEHOLDER || {}).then(data => {
             if (!data.macro_result) {
                 document.getElementById('res-phase-1').innerHTML = '<p style="color:red; font-weight:bold;">Error: No data found. You are likely viewing the template file instead of the generated dashboard.html, or the JSON injection failed.</p>';
                 return;

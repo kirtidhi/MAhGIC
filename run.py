@@ -89,17 +89,11 @@ def main():
         with open('ui/dashboard_template.html', 'r') as f:
             html_content = f.read()
         json_str = json.dumps(results_data)
-        start_marker = "Promise.resolve({"
-        end_marker = "}).then(data => {"
-        start_idx = html_content.find(start_marker)
-        end_idx = html_content.find(end_marker) + 1
-        if start_idx != -1 and end_idx != -1:
-            new_html = html_content[:start_idx] + "Promise.resolve(" + json_str + html_content[end_idx:]
-            with open('ui/dashboard.html', 'w') as f:
-                f.write(new_html)
-            logger.info("Dashboard injected successfully.")
-        else:
-            logger.info("Markers not found in template.")
+        # Inject the JSON into the placeholder
+        new_html = html_content.replace("const DATA_PLACEHOLDER = null;", f"const DATA_PLACEHOLDER = {json_str};")
+        with open('ui/dashboard.html', 'w') as f:
+            f.write(new_html)
+        logger.info("Dashboard injected successfully.")
     except Exception as e:
         logger.info(f"[!] Warning: Failed to inject dashboard: {e}")
         
