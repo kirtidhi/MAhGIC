@@ -10,26 +10,9 @@ class DiscoveryEngine:
         self.llm = get_provider()
         self.total_tokens = {"prompt": 0, "response": 0, "total": 0}
 
-    def _parse_token_usage(self, response_text: str):
-        lines = response_text.split('\n')
-        clean_text = ""
-        for line in lines:
-            if "[Token Usage]" in line:
-                try:
-                    parts = line.split("|")
-                    prompt_tokens = int(parts[0].split(":")[1].strip())
-                    response_tokens = int(parts[1].split(":")[1].strip())
-                    total_tokens = int(parts[2].split(":")[1].strip())
-                    self.total_tokens["prompt"] += prompt_tokens
-                    self.total_tokens["response"] += response_tokens
-                    self.total_tokens["total"] += total_tokens
-                except:
-                    pass
-                continue
-            clean_text += line + "\n"
-        return clean_text
 
-    def generate_companies(self, country: str, macro_trends: list) -> list:
+
+    def generate_companies(self, country: str, macro_trends: list) -> tuple[list, dict]:
         logger.info(f"\n[*] Discovery Engine: Finding up to 100 companies in {country} aligned with {macro_trends}...")
         
         system_instruction = """
@@ -76,11 +59,10 @@ class DiscoveryEngine:
         ]
         """
         
-        response_text = self.llm.generate(prompt, system_instruction)[0]
-        clean_text = self._parse_token_usage(response_text)
+        response_text, token_dict = self.llm.generate(prompt, system_instruction)
         
         json_str = ""
-        for line in clean_text.split('\n'):
+        for line in response_text.split('\n'):
             if line.startswith("```"):
                 continue
             json_str += line + "\n"
@@ -99,9 +81,9 @@ class DiscoveryEngine:
                                 valid_tickers.append(company)
                         except:
                             pass
-                return valid_tickers
+                return valid_tickers, token_dict
             else:
-                return []
+                return [], token_dict
         except Exception as e:
             logger.info(f"[!] Error parsing Discovery Engine output: {e}")
-            return []
+            return [], token_dict

@@ -12,7 +12,7 @@ class RegulatoryBrain:
     def __init__(self, llm_provider=None):
         self.llm = llm_provider
         self.headers = {
-            "User-Agent": "MAhGIC Analysis (mahgic-real@google.com)"
+            "User-Agent": "MAhGIC Analysis (mahgic-bot@example.com)"
         }
 
     def get_document_type(self, ticker_symbol: str) -> str:
@@ -116,8 +116,8 @@ class RegulatoryBrain:
             soup = BeautifulSoup(response.text, 'html.parser')
             text = soup.get_text(separator=' ')
             
-            lines = [line.strip() for line in text.split(' ') if line.strip()]
-            clean_text = ' '.join(lines)
+            lines = [line.strip() for line in text.split('\n') if line.strip()]
+            clean_text = '\n'.join(lines)
             
             logger.info(f"[*] Extracted {len(clean_text)} characters. Truncating to 60k for LLM context.")
             return clean_text[:60000], doc_type

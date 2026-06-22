@@ -4,6 +4,8 @@ logger = logging.getLogger("mahgic")
 import asyncio
 import argparse
 import os
+import json
+import re
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -26,7 +28,11 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     logger.info("\n>>> PHASE 1: MACRO TREND IDENTIFICATION")
     try:
         macro_brain = MacroBrain()
-        macro_result = macro_brain.get_macro_trends()
+        macro_result, macro_tokens = macro_brain.get_macro_trends()
+        
+        for k in total_pipeline_tokens:
+            total_pipeline_tokens[k] += macro_tokens.get(k, 0)
+            
         if isinstance(macro_result, dict):
             strategic_keywords = macro_result.get("trends", [])
             macro_commentary = macro_result.get("commentary", "")
@@ -44,12 +50,12 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     logger.info("\n>>> PHASE 1.5: DISCOVERY ENGINE")
     try:
         discovery_engine = DiscoveryEngine()
-        discovered_companies = discovery_engine.generate_companies(country, strategic_keywords)
+        discovered_companies, disc_tokens = discovery_engine.generate_companies(country, strategic_keywords)
         logger.info(f"[+] Discovered {len(discovered_companies)} potential companies.")
         
         # Accumulate tokens
         for k in total_pipeline_tokens:
-            total_pipeline_tokens[k] += discovery_engine.total_tokens[k]
+            total_pipeline_tokens[k] += disc_tokens.get(k, 0)
     except Exception as e:
         logger.info(f"[!] Discovery Engine failed: {e}")
         discovered_companies = []
@@ -67,13 +73,12 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
     
     logger.info(f"[*] Processing up to {limit} out of {len(discovered_companies)} tickers for a full end-to-end test...")
     
-    import os
-    import json
     os.makedirs("results_cache", exist_ok=True)
     
     for company in discovered_companies[:limit]:
         if not isinstance(company, dict): continue
         ticker = company.get("ticker")
+        company_name = company.get("company_name", ticker)
         if not ticker: continue
         logger.info(f"\n--- Analyzing {ticker} ---")
         
@@ -102,13 +107,13 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
             full_report = report + f"\n--- {doc_type} Qualitative Assessment ---\n" + reg_eval
             
             # evaluate queries the Wisdom Corpus and returns score/reasoning
-            thesis = market_brain.evaluate(full_report)
+            thesis, mb_tokens = market_brain.evaluate(full_report)
+            
+            for k in total_pipeline_tokens:
+                total_pipeline_tokens[k] += mb_tokens.get(k, 0)
             
             score = 0
             try:
-                import json
-                import re
-                
                 # Extract JSON using regex in case there's text around it
                 json_match = re.search(r'\{.*\}', thesis.replace('\n', ' '))
                 if json_match:
@@ -117,16 +122,6 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
                     thesis = thesis_json.get("reasoning", thesis)
             except Exception as e:
                 logger.info(f"[!] Failed to parse JSON score: {e}")
-                
-            for line in thesis.split('\n'):
-                if "[Token Usage]" in line:
-                    try:
-                        parts = line.split("|")
-                        total_pipeline_tokens["prompt"] += int(parts[0].split(":")[1].strip())
-                        total_pipeline_tokens["response"] += int(parts[1].split(":")[1].strip())
-                        total_pipeline_tokens["total"] += int(parts[2].split(":")[1].strip())
-                    except:
-                        pass
             
             logger.info(f"[+] Extracted Hidden Gem Score: {score}/10")
             all_scores[ticker] = score
@@ -137,8 +132,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
                 hidden_gems_data[ticker] = data
                 
                 # 2. Job Board Scraper
-                clean_ticker = ticker.lower().split('.')[0]
-                scraper = JobBoardScraper(clean_ticker)
+                scraper = JobBoardScraper(company_name)
                 try:
                     jobs = await scraper.scrape_jobs()
                     intent = scraper.analyze_strategic_intent(jobs, strategic_keywords)
@@ -171,7 +165,11 @@ Raw Financial Data:
 Regulatory Qualitative Assessment:
 {reg_eval}
 """             
-                final_thesis = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")[0]
+                final_thesis, ft_tokens = provider.generate(structured_prompt, "You are a strategic intent analyst focusing on simple, structured reporting.")
+                
+                for k in total_pipeline_tokens:
+                    total_pipeline_tokens[k] += ft_tokens.get(k, 0)
+                    
                 hidden_gems_thesis[ticker] = final_thesis
                 
             with open(cache_file, "w") as f:
@@ -188,7 +186,6 @@ Regulatory Qualitative Assessment:
         await asyncio.sleep(0.5)
 
 
-    import json
     with open("results.json", "w") as f:
         json.dump({
             "country": country,

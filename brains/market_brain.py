@@ -234,7 +234,7 @@ class MarketBrain:
         )
         
         logger.info("Running AI Evaluation...")
-        return self.llm.generate(prompt=report_text, system_instruction=system_instruction)[0]
+        return self.llm.generate(prompt=report_text, system_instruction=system_instruction)
 
 
 def main():

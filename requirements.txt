@@ -7,7 +7,6 @@ requests
 playwright
 openai
 anthropic
-ddgs
 python-dotenv
 chromadb
 langchain-text-splitters

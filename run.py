@@ -84,14 +84,14 @@ def main():
     logger.info("\n[*] Injecting results into the HTML Dashboard...")
     try:
         import json
-        with open('results.json', 'r') as f:
+        with open(os.path.join(os.path.dirname(__file__), 'results.json'), 'r') as f:
             results_data = json.load(f)
-        with open('ui/dashboard_template.html', 'r') as f:
+        with open(os.path.join(os.path.dirname(__file__), 'ui/dashboard_template.html'), 'r') as f:
             html_content = f.read()
         json_str = json.dumps(results_data)
         # Inject the JSON into the placeholder
         new_html = html_content.replace("const DATA_PLACEHOLDER = null;", f"const DATA_PLACEHOLDER = {json_str};")
-        with open('ui/dashboard.html', 'w') as f:
+        with open(os.path.join(os.path.dirname(__file__), 'ui/dashboard.html'), 'w') as f:
             f.write(new_html)
         logger.info("Dashboard injected successfully.")
     except Exception as e:

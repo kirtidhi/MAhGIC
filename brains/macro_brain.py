@@ -9,7 +9,7 @@ class MacroBrain:
     def __init__(self):
         self.llm = get_provider()
 
-    def get_macro_trends(self) -> dict:
+    def get_macro_trends(self) -> tuple[dict, dict]:
         logger.info("[*] Macro Brain: Analyzing current macro environment and identifying top trends...")
         
         system_instruction = """
@@ -31,15 +31,12 @@ class MacroBrain:
         
         prompt = "What are the top technological and economic macro trends right now? Output the JSON object."
         
-        response_text = self.llm.generate(prompt, system_instruction)[0]
+        response_text, token_dict = self.llm.generate(prompt, system_instruction)
         
         # Clean up the response to extract just the JSON
         lines = response_text.split('\n')
         json_str = ""
         for line in lines:
-            if "[Token Usage]" in line:
-                logger.info(f"[Macro Brain] {line.strip()}")
-                continue
             # Strip markdown if the LLM hallucinated it
             if line.startswith("```"):
                 continue
@@ -48,14 +45,14 @@ class MacroBrain:
         try:
             result = json.loads(json_str.strip())
             if isinstance(result, dict) and "trends" in result:
-                return result
+                return result, token_dict
             else:
                 logger.info("[!] Macro Brain returned unexpected format. Using fallback.")
-                return {"trends": ["Generative AI", "Energy Transition"], "commentary": "Fallback commentary.", "sources": ["Fallback Source"]}
+                return {"trends": ["Generative AI", "Energy Transition"], "commentary": "Fallback commentary.", "sources": ["Fallback Source"]}, token_dict
         except Exception as e:
             logger.info(f"[!] Error parsing Macro Brain output: {e}")
             logger.info(f"Raw output: {response_text}")
-            return {"trends": ["Generative AI", "Energy Transition"], "commentary": "Error parsing output.", "sources": ["None"]}
+            return {"trends": ["Generative AI", "Energy Transition"], "commentary": "Error parsing output.", "sources": ["None"]}, token_dict
 
 if __name__ == "__main__":
     brain = MacroBrain()
