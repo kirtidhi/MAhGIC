@@ -13,3 +13,4 @@ chromadb
 langchain-text-splitters
 # sentence-transformers is an implicit dependency for ChromaDB embeddings
 sentence-transformers
+pypdf

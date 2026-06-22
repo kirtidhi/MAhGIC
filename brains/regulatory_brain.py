@@ -33,19 +33,55 @@ class RegulatoryBrain:
             if ticker_symbol.endswith(".NS") or ticker_symbol.endswith(".BO") or ticker_symbol.endswith(".AX") or ticker_symbol.endswith(".L"):
                 logger.info(f"[*] Falling back to DuckDuckGo search for {ticker_symbol} {doc_type}...")
                 try:
+                    import urllib.parse
+                    import io
+                    try:
+                        import pypdf
+                    except ImportError:
+                        pypdf = None
+
                     ticker = yf.Ticker(ticker_symbol)
                     company_name = ticker.info.get("longName", ticker_symbol)
                     query = f"{company_name} {doc_type} summary analysis risks"
                     res = requests.get(f"https://html.duckduckgo.com/html/?q={query}", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                     soup = BeautifulSoup(res.text, 'html.parser')
-                    snippets = []
-                    for a in soup.find_all('a', class_='result__snippet')[:10]:
-                        snippets.append(a.get_text(strip=True))
                     
-                    if snippets:
-                        clean_text = " ".join(snippets)
-                        logger.info(f"[*] Extracted {len(clean_text)} characters from DuckDuckGo snippets.")
-                        return clean_text, doc_type
+                    extracted_text = ""
+                    for a in soup.find_all('a', class_='result__snippet')[:5]:
+                        extracted_text += a.get_text(strip=True) + "\n"
+                    
+                    first_url_tag = soup.find('a', class_='result__url')
+                    if first_url_tag and first_url_tag.get('href'):
+                        uddg_href = first_url_tag.get('href')
+                        parsed_url = urllib.parse.urlparse(uddg_href)
+                        qs = urllib.parse.parse_qs(parsed_url.query)
+                        if 'uddg' in qs:
+                            target_url = qs['uddg'][0]
+                            logger.info(f"[*] Following DuckDuckGo search result URL: {target_url}")
+                            try:
+                                doc_res = requests.get(target_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+                                content_type = doc_res.headers.get('Content-Type', '').lower()
+                                
+                                if 'application/pdf' in content_type and pypdf:
+                                    logger.info("[*] URL is a PDF, extracting text...")
+                                    pdf_reader = pypdf.PdfReader(io.BytesIO(doc_res.content))
+                                    pdf_text = ""
+                                    for page in pdf_reader.pages[:20]:
+                                        pdf_text += page.extract_text() + "\n"
+                                    extracted_text += "\n\n--- SOURCE DOCUMENT ---\n" + pdf_text
+                                elif 'text/html' in content_type:
+                                    logger.info("[*] URL is HTML, extracting text...")
+                                    doc_soup = BeautifulSoup(doc_res.text, 'html.parser')
+                                    for script in doc_soup(["script", "style"]):
+                                        script.extract()
+                                    doc_text = doc_soup.get_text(separator=' ', strip=True)
+                                    extracted_text += "\n\n--- SOURCE DOCUMENT ---\n" + doc_text[:50000]
+                            except Exception as doc_e:
+                                logger.warning(f"[!] Failed to fetch target document: {doc_e}")
+                    
+                    if extracted_text.strip():
+                        logger.info(f"[*] Extracted {len(extracted_text)} characters from DuckDuckGo fallback.")
+                        return extracted_text, doc_type
                 except Exception as e:
                     logger.info(f"[!] DuckDuckGo fallback failed: {e}")
 
