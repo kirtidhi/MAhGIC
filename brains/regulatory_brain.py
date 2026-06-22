@@ -30,8 +30,27 @@ class RegulatoryBrain:
         logger.info(f"[*] Fetching {doc_type} for {ticker_symbol}...")
         
         if doc_type != "SEC 10-K":
+            if ticker_symbol.endswith(".NS") or ticker_symbol.endswith(".BO") or ticker_symbol.endswith(".AX") or ticker_symbol.endswith(".L"):
+                logger.info(f"[*] Falling back to DuckDuckGo search for {ticker_symbol} {doc_type}...")
+                try:
+                    ticker = yf.Ticker(ticker_symbol)
+                    company_name = ticker.info.get("longName", ticker_symbol)
+                    query = f"{company_name} {doc_type} summary analysis risks"
+                    res = requests.get(f"https://html.duckduckgo.com/html/?q={query}", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                    soup = BeautifulSoup(res.text, 'html.parser')
+                    snippets = []
+                    for a in soup.find_all('a', class_='result__snippet')[:10]:
+                        snippets.append(a.get_text(strip=True))
+                    
+                    if snippets:
+                        clean_text = " ".join(snippets)
+                        logger.info(f"[*] Extracted {len(clean_text)} characters from DuckDuckGo snippets.")
+                        return clean_text, doc_type
+                except Exception as e:
+                    logger.info(f"[!] DuckDuckGo fallback failed: {e}")
+
             logger.info(f"[!] Automated fetching of {doc_type} is not natively supported by yfinance for {ticker_symbol}.")
-            logger.info(f"[*] Preconfigured support: This system expects manual ingestion or an external data pipeline for {doc_type}.")
+            logger.info(f"[*] Support for DuckDuckGo web search fallback is currently only available for Indian (.NS, .BO), Australian (.AX), and London (.L) markets.")
             return "", doc_type
 
         try:
