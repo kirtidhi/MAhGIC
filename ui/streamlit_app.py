@@ -102,13 +102,16 @@ elif section == "3. Hidden Gems":
                     info = gem_data.get("info", {})
                     
                     # Create small metric cards
+                    m1, m2, m3, m4 = st.columns(4)
                     currency = info.get("currency", "USD")
                     
                     def fmt(val):
                         if not val: return "N/A"
                         if currency == "INR": return f"₹{val/1e7:.0f}Cr"
-                        if currency == "GBP": return f"£{val/1e6:.1f}M"
-                        return f"${val/1e9:.2f}B" if val >= 1e9 else f"${val/1e6:.1f}M"
+                        
+                        prefixes = {"USD": "$", "AUD": "A$", "CAD": "C$", "EUR": "€", "GBP": "£", "JPY": "¥"}
+                        sym = prefixes.get(currency, "$")
+                        return f"{sym}{val/1e9:.2f}B" if val >= 1e9 else f"{sym}{val/1e6:.1f}M"
                         
                     m1.metric("Market Cap", fmt(info.get('marketCap', 0)))
                     m2.metric("Forward P/E", info.get("forwardPE", "N/A"))

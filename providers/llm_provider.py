@@ -21,6 +21,7 @@ class GeminiProvider(LLMProvider):
                 contents=prompt,
                 config=self.genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,
+                    max_output_tokens=max_tokens,
                 ),
             )
             
@@ -44,6 +45,7 @@ class OpenAIProvider(LLMProvider):
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o",
+                max_tokens=max_tokens,
                 messages=[
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": prompt}
