@@ -85,8 +85,18 @@ class DiscoveryEngine:
             try:
                 tickers = json.loads(json_str.strip())
             except Exception as e2:
-                logger.info(f"[!] Error parsing Discovery Engine retry output: {e2}")
-                return [], token_dict
+                logger.info(f"[!] Error parsing Discovery Engine retry output: {e2}. Attempting partial recovery...")
+                last_brace = json_str.rfind('}')
+                if last_brace != -1:
+                    partial_json = json_str[:last_brace+1] + "\n]"
+                    try:
+                        tickers = json.loads(partial_json)
+                        logger.info(f"[*] Recovered {len(tickers)} companies from partial JSON.")
+                    except Exception as e3:
+                        logger.info(f"[!] Partial recovery failed: {e3}")
+                        return [], token_dict
+                else:
+                    return [], token_dict
 
         if isinstance(tickers, list):
             import yfinance as yf

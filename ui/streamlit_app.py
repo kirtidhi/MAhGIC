@@ -7,7 +7,9 @@ st.set_page_config(layout="wide", page_title="AI Stock Brain Dashboard", page_ic
 st.title("🧠 AI Stock Brain: Hidden Gems Dashboard")
 
 try:
-    with open('results.json', 'r') as f:
+    import os
+    results_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'results.json')
+    with open(results_path, 'r') as f:
         data = json.load(f)
 except Exception:
     st.error("No results.json found. Run orchestrator.py first.")
@@ -58,7 +60,7 @@ elif section == "2. Company Discovery":
         def highlight_score(val):
             if not isinstance(val, (int, float)):
                 return ''
-            color = 'green' if val >= 6 else ('orange' if val > 3 else 'red')
+            color = 'green' if val >= 7 else ('orange' if val > 3 else 'red')
             return f'color: {color}'
         
         st.dataframe(df.style.map(highlight_score, subset=['Score']), use_container_width=True)
@@ -67,7 +69,7 @@ elif section == "3. Hidden Gems":
     st.header("💎 Phase 3: Hidden Gems Deep Dive")
     gems = data.get("hidden_gems", [])
     if not gems:
-        st.warning("No Hidden Gems found (Score >= 6) based on strict criteria.")
+        st.warning("No Hidden Gems found (Score >= 7) based on strict criteria.")
     else:
         for gem in gems:
             st.markdown("---")
@@ -100,11 +102,18 @@ elif section == "3. Hidden Gems":
                     info = gem_data.get("info", {})
                     
                     # Create small metric cards
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("Market Cap", f"${info.get('marketCap', 0)/1e9:.2f}B")
+                    currency = info.get("currency", "USD")
+                    
+                    def fmt(val):
+                        if not val: return "N/A"
+                        if currency == "INR": return f"₹{val/1e7:.0f}Cr"
+                        if currency == "GBP": return f"£{val/1e6:.1f}M"
+                        return f"${val/1e9:.2f}B" if val >= 1e9 else f"${val/1e6:.1f}M"
+                        
+                    m1.metric("Market Cap", fmt(info.get('marketCap', 0)))
                     m2.metric("Forward P/E", info.get("forwardPE", "N/A"))
-                    m3.metric("Total Cash", f"${info.get('totalCash', 0)/1e6:.1f}M")
-                    m4.metric("Total Debt", f"${info.get('totalDebt', 0)/1e6:.1f}M")
+                    m3.metric("Total Cash", fmt(info.get('totalCash', 0)))
+                    m4.metric("Total Debt", fmt(info.get('totalDebt', 0)))
 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"Total Tokens Used: {data.get('token_usage', 0):,}")

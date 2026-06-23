@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class LLMProvider(ABC):
     @abstractmethod
-    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
+    def generate(self, prompt: str, system_instruction: str, max_tokens: int = 8192) -> tuple[str, dict]:
         pass
 
 class GeminiProvider(LLMProvider):
@@ -14,7 +14,7 @@ class GeminiProvider(LLMProvider):
         except ImportError:
             raise ImportError("Please install google-genai: pip install google-genai")
         
-    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
+    def generate(self, prompt: str, system_instruction: str, max_tokens: int = 8192) -> tuple[str, dict]:
         try:
             response = self.client.models.generate_content(
                 model='gemini-3.1-pro-preview',
@@ -40,7 +40,7 @@ class OpenAIProvider(LLMProvider):
         except ImportError:
             raise ImportError("Please install openai: pip install openai")
         
-    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
+    def generate(self, prompt: str, system_instruction: str, max_tokens: int = 8192) -> tuple[str, dict]:
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -63,11 +63,11 @@ class ClaudeProvider(LLMProvider):
         except ImportError:
             raise ImportError("Please install anthropic: pip install anthropic")
         
-    def generate(self, prompt: str, system_instruction: str) -> tuple[str, dict]:
+    def generate(self, prompt: str, system_instruction: str, max_tokens: int = 8192) -> tuple[str, dict]:
         try:
             response = self.client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=4096,
+                max_tokens=max_tokens,
                 system=system_instruction,
                 messages=[
                     {"role": "user", "content": prompt}

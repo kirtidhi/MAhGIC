@@ -97,7 +97,7 @@ def main():
     except Exception as e:
         logger.info(f"[!] Warning: Failed to inject dashboard: {e}")
         
-    logger.info(f"\n[+] Pipeline completed successfully! The HTML dashboard has been updated: file://{os.path.abspath('ui/dashboard.html')}")
+    logger.info(f"\n[+] Pipeline completed successfully! The HTML dashboard has been updated: file://{os.path.abspath(os.path.join(os.path.dirname(__file__), 'ui/dashboard.html'))}")
 
     if run_streamlit:
         logger.info("\n[*] Launching Streamlit dashboard...")
