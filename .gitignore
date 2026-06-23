@@ -9,3 +9,5 @@ streamlit.log
 GEMS.zip
 brains/chroma_db/
 results_cache/
+claude_content.txt
+*.chat.txt
