@@ -66,10 +66,11 @@ class ClaudeProvider(LLMProvider):
             raise ImportError("Please install anthropic: pip install anthropic")
         
     def generate(self, prompt: str, system_instruction: str, max_tokens: int = 8192) -> tuple[str, dict]:
+        actual_max_tokens = min(max_tokens, 8192)
         try:
             response = self.client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=max_tokens,
+                max_tokens=actual_max_tokens,
                 system=system_instruction,
                 messages=[
                     {"role": "user", "content": prompt}

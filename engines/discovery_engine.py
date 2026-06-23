@@ -58,7 +58,7 @@ class DiscoveryEngine:
         ]
         """
         
-        response_text, token_dict = self.llm.generate(prompt, system_instruction)
+        response_text, token_dict = self.llm.generate(prompt, system_instruction, max_tokens=16384)
         
         json_str = ""
         for line in response_text.split('\n'):
@@ -71,7 +71,7 @@ class DiscoveryEngine:
         except Exception as e:
             logger.info(f"[!] Error parsing Discovery Engine output: {e}. Retrying with smaller batch (50)...")
             retry_prompt = prompt.replace("EXACTLY 100", "EXACTLY 50").replace("hit 100", "hit 50")
-            retry_response, retry_tokens = self.llm.generate(retry_prompt, system_instruction)
+            retry_response, retry_tokens = self.llm.generate(retry_prompt, system_instruction, max_tokens=16384)
             
             for k in token_dict:
                 token_dict[k] += retry_tokens.get(k, 0)
