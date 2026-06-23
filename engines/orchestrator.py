@@ -155,7 +155,7 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
 You are an expert fundamental value investor and strategic intent analyst.
 Based on the following data for {ticker}, write a 'Hidden Gem Strategic Thesis'.
 Use VERY SIMPLE language that is easy to understand. Do not use complex financial jargon.
-NEVER use the words "Billion" or "Million". For Indian companies, strictly convert and format all large numbers using Crores (Cr) and Lakhs (L).
+Format all financial figures using the local currency denominations (e.g., Millions/Billions). For South Asian companies (e.g., India, Pakistan, Bangladesh, Nepal, Sri Lanka), strictly convert and format all large numbers using Crores (Cr) and Lakhs (L).
 
 You must structure your response with these exact sections (use bold headings or bullet points):
 1. **Macro Trends:** Explain what macro trends this company satisfies (e.g., {strategic_keywords}).

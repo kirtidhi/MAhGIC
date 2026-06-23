@@ -226,7 +226,7 @@ class MarketBrain:
             "2. Valuation: Look at the P/E ratio. If it's extremely high (e.g., > 50), it is likely overvalued and NOT a hidden gem, unless growth is astronomical.\n"
             "3. Profitability: The company must have positive Free Cash Flow and Profit Margins.\n"
             "4. Growth: Revenue growth should be positive. Check the last 8 quarters trend for revenue and net income to ensure it's not declining.\n\n"
-            "When generating your reasoning, format all financial figures using the local currency denominations. NEVER use the words 'Billion' or 'Million'. If the country uses Lakhs and Crores (e.g., India), strictly convert all large numbers to Crores (Cr) and Lakhs (L).\n"
+            "When generating your reasoning, format all financial figures using the local currency denominations (e.g., Millions/Billions). If the country uses Lakhs and Crores (e.g., India, Pakistan, Bangladesh, Nepal, Sri Lanka), strictly convert all large numbers to Crores (Cr) and Lakhs (L).\n"
             "Provide a brief, brutal assessment based on the last 8 quarters. You MUST return your output strictly as a JSON object with the following schema: "
             "{\"score\": <int out of 10>, \"reasoning\": \"<your brief brutal assessment>\"}. Do not include markdown formatting or backticks around the JSON."
             f"{wisdom_corpus}"
