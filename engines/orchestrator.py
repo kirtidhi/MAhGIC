@@ -17,7 +17,7 @@ from brains.regulatory_brain import RegulatoryBrain
 from providers.llm_provider import get_provider
 from scrapers.job_scraper import JobBoardScraper
 
-async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30):
+async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30, domain: str = None, budget: int = None):
     logger.info("="*60)
     logger.info(f"STARTING AI STOCK BRAIN PIPELINE FOR COUNTRY: {country}")
     logger.info("="*60)
@@ -26,26 +26,19 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30)
 
     # PHASE 1: Macro Brain (Economy and Macro Trend Identification)
     logger.info("\n>>> PHASE 1: MACRO TREND IDENTIFICATION")
-    try:
+    if domain:
+        strategic_keywords = [domain]
+        macro_result = {"trends": strategic_keywords, "commentary": "Pre-supplied by user", "sources": []}
+        logger.info(f"[+] User-supplied domain/trend: {strategic_keywords}")
+    else:
         macro_brain = MacroBrain()
-        macro_result, macro_tokens = macro_brain.get_macro_trends()
-        
+        macro_result, mb_tokens = macro_brain.get_macro_trends()
+        strategic_keywords = macro_result.get("trends", ["Generative AI"])
         for k in total_pipeline_tokens:
-            total_pipeline_tokens[k] += macro_tokens.get(k, 0)
-            
-        if isinstance(macro_result, dict):
-            strategic_keywords = macro_result.get("trends", [])
-            macro_commentary = macro_result.get("commentary", "")
-            macro_sources = macro_result.get("sources", [])
-        else:
-            strategic_keywords = macro_result
-            macro_commentary = ""
-            macro_sources = []
-        logger.info(f"[+] Derived Strategic Keywords: {strategic_keywords}")
-    except Exception as e:
-        logger.info(f"[!] Macro Brain failed: {e}")
-        strategic_keywords = ["Generative AI", "Quantum Computing", "Space Tech"] # fallback
-        macro_result = {"trends": strategic_keywords, "commentary": "Fallback", "sources": []}
+            total_pipeline_tokens[k] += mb_tokens.get(k, 0)
+        logger.info(f"[+] Macro Brain identified trends: {strategic_keywords}")
+        
+    logger.info(f"[+] Derived Strategic Keywords: {strategic_keywords}")
     # PHASE 1.5: Discovery Engine (Generate 100 Companies)
     logger.info("\n>>> PHASE 1.5: DISCOVERY ENGINE")
     try:

@@ -68,9 +68,27 @@ def main():
             logger.info("Invalid input for limit. Defaulting to 50.")
             limit = 50
 
+    domain = input("\n[?] What domain or trend would you like to analyze? (e.g. 'Beyond the GPU', 'Robotics'). Enter 'I don't know' to auto-generate: ").strip()
+    if not domain or domain.lower() in ["i don't know", "i dont know", "no preference", "none", ""]:
+        domain = None
+
+    recommended_budget = limit * 25000
+    budget_input = input(f"\n[?] What is your total token budget limit? (Recommended for {limit} companies: ~{recommended_budget}): ").strip()
+    budget = recommended_budget
+    if budget_input:
+        try:
+            budget = int(budget_input)
+            if budget < recommended_budget * 0.7:
+                logger.warning(f"[!] WARNING: Your budget ({budget}) is significantly lower than recommended ({recommended_budget}). The TokenOptimizer will aggressively compress data, which may result in degraded analysis quality or missed Hidden Gems.")
+        except ValueError:
+            logger.info("Invalid budget input. Defaulting to recommended budget.")
+            budget = recommended_budget
+
+    os.environ["TOKEN_BUDGET"] = str(budget)
+
     run_streamlit = args.streamlit
     if not run_streamlit:
-        streamlit_input = input("[?] Would you like to run the interactive Streamlit dashboard after completion? (y/n): ")
+        streamlit_input = input("\n[?] Would you like to run the interactive Streamlit dashboard after completion? (y/n): ")
         run_streamlit = streamlit_input.lower().startswith('y')
 
     # Run orchestrator
@@ -79,7 +97,7 @@ def main():
     
     # Run the async pipeline
     proxycurl_key = os.environ.get("PROXYCURL_API_KEY")
-    asyncio.run(orchestrator.run_pipeline(country, proxycurl_key, limit))
+    asyncio.run(orchestrator.run_pipeline(country, proxycurl_key, limit, domain, budget))
     
     logger.info("\n[*] Injecting results into the HTML Dashboard...")
     try:

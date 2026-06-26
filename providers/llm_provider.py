@@ -84,19 +84,31 @@ class ClaudeProvider(LLMProvider):
 
 def get_provider() -> LLMProvider:
     import os
+    from token_optimizer import TokenOptimizer, TokenBudget
+    
     provider_name = os.environ.get("LLM_PROVIDER", "gemini").lower()
     if provider_name == "openai":
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        return OpenAIProvider(api_key)
+        base_provider = OpenAIProvider(api_key)
     elif provider_name in ["claude", "anthropic"]:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-        return ClaudeProvider(api_key)
+        base_provider = ClaudeProvider(api_key)
     else:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is not set")
-        return GeminiProvider(api_key)
+        base_provider = GeminiProvider(api_key)
+        
+    budget_env = os.environ.get("TOKEN_BUDGET")
+    budget_val = int(budget_env) if budget_env else 2000000
+
+    return TokenOptimizer(
+        provider=base_provider,
+        budget=TokenBudget(total=budget_val),
+        cache=True,
+        compress_above=10000
+    )

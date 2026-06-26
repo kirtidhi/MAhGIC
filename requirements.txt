@@ -13,3 +13,4 @@ langchain-text-splitters>=0.2.0
 # sentence-transformers is an implicit dependency for ChromaDB embeddings
 sentence-transformers
 pypdf
+git+https://github.com/kirtidhi/token-optimizer.git
