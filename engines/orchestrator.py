@@ -18,6 +18,9 @@ from providers.llm_provider import get_provider
 from scrapers.job_scraper import JobBoardScraper
 
 async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30, domain: str = None, budget: int = None):
+    if budget:
+        os.environ["TOKEN_BUDGET"] = str(budget)
+    
     logger.info("="*60)
     logger.info(f"STARTING AI STOCK BRAIN PIPELINE FOR COUNTRY: {country}")
     logger.info("="*60)
@@ -31,12 +34,17 @@ async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30,
         macro_result = {"trends": strategic_keywords, "commentary": "Pre-supplied by user", "sources": []}
         logger.info(f"[+] User-supplied domain/trend: {strategic_keywords}")
     else:
-        macro_brain = MacroBrain()
-        macro_result, mb_tokens = macro_brain.get_macro_trends()
-        strategic_keywords = macro_result.get("trends", ["Generative AI"])
-        for k in total_pipeline_tokens:
-            total_pipeline_tokens[k] += mb_tokens.get(k, 0)
-        logger.info(f"[+] Macro Brain identified trends: {strategic_keywords}")
+        try:
+            macro_brain = MacroBrain()
+            macro_result, mb_tokens = macro_brain.get_macro_trends()
+            strategic_keywords = macro_result.get("trends", ["Generative AI"])
+            for k in total_pipeline_tokens:
+                total_pipeline_tokens[k] += mb_tokens.get(k, 0)
+            logger.info(f"[+] Macro Brain identified trends: {strategic_keywords}")
+        except Exception as e:
+            logger.warning(f"[!] Macro Brain failed: {e}. Using fallback trends.")
+            strategic_keywords = ["Generative AI", "Quantum Computing", "Space Tech"]
+            macro_result = {"trends": strategic_keywords, "commentary": "Fallback", "sources": []}
         
     logger.info(f"[+] Derived Strategic Keywords: {strategic_keywords}")
     # PHASE 1.5: Discovery Engine (Generate 100 Companies)

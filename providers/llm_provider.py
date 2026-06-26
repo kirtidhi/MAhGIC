@@ -82,7 +82,13 @@ class ClaudeProvider(LLMProvider):
         except Exception as e:
             return f"Error connecting to Claude: {e}", {}
 
+_provider_instance = None
+
 def get_provider() -> LLMProvider:
+    global _provider_instance
+    if _provider_instance is not None:
+        return _provider_instance
+        
     import os
     from token_optimizer import TokenOptimizer, TokenBudget
     
@@ -106,9 +112,10 @@ def get_provider() -> LLMProvider:
     budget_env = os.environ.get("TOKEN_BUDGET")
     budget_val = int(budget_env) if budget_env else 2000000
 
-    return TokenOptimizer(
+    _provider_instance = TokenOptimizer(
         provider=base_provider,
         budget=TokenBudget(total=budget_val),
         cache=True,
         compress_above=10000
     )
+    return _provider_instance
