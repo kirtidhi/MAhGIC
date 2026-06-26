@@ -18,6 +18,9 @@ from providers.llm_provider import get_provider
 from scrapers.job_scraper import JobBoardScraper
 
 async def run_pipeline(country: str, proxycurl_key: str = None, limit: int = 30, domain: str = None, budget: int = None):
+    from providers.llm_provider import reset_provider
+    reset_provider()
+    
     if budget:
         os.environ["TOKEN_BUDGET"] = str(budget)
     

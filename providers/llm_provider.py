@@ -11,6 +11,7 @@ class GeminiProvider(LLMProvider):
             from google import genai
             self.client = genai.Client(api_key=api_key)
             self.genai = genai
+            self.model = 'gemini-3.1-pro-preview'
         except ImportError:
             raise ImportError("Please install google-genai: pip install google-genai")
         
@@ -38,6 +39,7 @@ class OpenAIProvider(LLMProvider):
         try:
             from openai import OpenAI
             self.client = OpenAI(api_key=api_key)
+            self.model = 'gpt-4o'
         except ImportError:
             raise ImportError("Please install openai: pip install openai")
         
@@ -62,6 +64,7 @@ class ClaudeProvider(LLMProvider):
         try:
             from anthropic import Anthropic
             self.client = Anthropic(api_key=api_key)
+            self.model = 'claude-sonnet-4-6'
         except ImportError:
             raise ImportError("Please install anthropic: pip install anthropic")
         
@@ -83,6 +86,10 @@ class ClaudeProvider(LLMProvider):
             return f"Error connecting to Claude: {e}", {}
 
 _provider_instance = None
+
+def reset_provider():
+    global _provider_instance
+    _provider_instance = None
 
 def get_provider() -> LLMProvider:
     global _provider_instance
