@@ -31,6 +31,7 @@ from .report import thesis as thesis_mod
 from .store import Store
 
 log = logging.getLogger("mahgic")
+CHUNK = 12000  # characters of 10-K text per extract call
 STAGES = ["universe", "screen", "fetch", "analyse", "draft", "review"]
 
 
@@ -136,13 +137,13 @@ class Pipeline:
         items = self.store.load(t, "10k_items")
         if not items:
             return None
-        # Priority: risk factors, MD&A, business. Chunk ~20k chars each.
+        # Priority: risk factors, MD&A, business. ~12k chars (~3k tokens) per chunk fits 16k context.
         order = [k for k in ("1A", "7", "1") if k in items]
         chunks = []
         for k in order:
             body = items[k]
-            for s in range(0, len(body), 20000):
-                chunks.append((k, body[s:s + 20000]))
+            for s in range(0, len(body), CHUNK):
+                chunks.append((k, body[s:s + CHUNK]))
         chunks = chunks[: self.max_chunks]
         merged: dict = {}
         for k, c in chunks:
@@ -157,7 +158,7 @@ class Pipeline:
                 elif v and v != "n/a":
                     merged.setdefault(key, []).append(v)
         merged = {k: list(dict.fromkeys(map(str, v)))[:12] for k, v in merged.items()}
-        merged["_chunks_read"] = f"{len(chunks)} of {sum(-(-len(items[k]) // 20000) for k in order)}"
+        merged["_chunks_read"] = f"{len(chunks)} of {sum(-(-len(items[k]) // CHUNK) for k in order)}"
         self.store.save(t, "extracts", merged)
         return merged
 

@@ -45,8 +45,8 @@ set -a; source .env; set +a
 
 # Local model — see docs/LOCAL_LLM.md for which model fits your Mac
 brew install ollama             # or download the app from ollama.com
-ollama serve &                  # the desktop app does this for you
-ollama pull qwen3:14b
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve &   # the desktop app also works; set context to 16k
+ollama pull qwen3.5:9b          # 16 GB Mac; confirm the tag on ollama.com/library
 
 python -m mahgic check          # confirms Ollama, the model, and keys
 pytest -q                       # offline tests, no network
@@ -74,9 +74,10 @@ Outputs per run, under `data/<date>/<market>/<universe>/`:
 - `<TICKER>/thesis_<TICKER>.md` — the thesis: score, section table, caps, key numbers, evidence, verdict
 - `summary_<market>_<universe>.md` — every company ranked within its track
 
-Time on a 32 GB Apple-silicon Mac with `qwen3:14b`: stages 1–4 take about 15–30 minutes per
-market; drafting takes about 3–8 minutes a company (six 10-K chunks plus the thesis), so the
-ASX 200 plus the US top 100 is roughly a weekend. Use `--max-chunks 3` to halve it.
+Time on a 16 GB M5 MacBook Pro with a 9B model (estimate, not yet measured): stages 1–4 take
+about 15–30 minutes per market; drafting takes a few minutes a company (six 10-K chunks plus the
+thesis), so the ASX 200 plus the US top 100 is one or two overnight runs. `--max-chunks 3`
+shortens it. The first run doubles as the speed test.
 
 ## Tracks, not cuts
 

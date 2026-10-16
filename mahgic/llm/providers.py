@@ -20,6 +20,9 @@ _paid_calls = [0]
 _lock = threading.Lock()
 
 
+LOCAL = {"ollama", "mlx"}
+
+
 class BudgetExceeded(RuntimeError):
     pass
 
@@ -37,6 +40,16 @@ def _ollama(system: str, user: str, cfg: dict, json_mode: bool) -> str:
     r.raise_for_status()
     text = r.json()["message"]["content"]
     return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()  # qwen3 thinking traces
+
+
+def _mlx(system: str, user: str, cfg: dict, json_mode: bool) -> str:
+    """Any OpenAI-compatible local server (mlx_lm.server, LM Studio, llama.cpp server)."""
+    body = {"model": cfg["model"], "temperature": cfg.get("temperature", 0.2),
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+    r = requests.post(f"{cfg['base_url']}/chat/completions", json=body, timeout=cfg.get("timeout_s", 900))
+    r.raise_for_status()
+    text = r.json()["choices"][0]["message"]["content"]
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
 
 
 def _anthropic(system: str, user: str, cfg: dict, json_mode: bool) -> str:
@@ -73,7 +86,7 @@ def _gemini(system: str, user: str, cfg: dict, json_mode: bool) -> str:
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
-IMPL = {"ollama": _ollama, "anthropic": _anthropic, "openai": _openai, "gemini": _gemini}
+IMPL = {"ollama": _ollama, "mlx": _mlx, "anthropic": _anthropic, "openai": _openai, "gemini": _gemini}
 
 
 def provider_for(task: str) -> str:
@@ -84,7 +97,7 @@ def call(task: str, system: str, user: str, json_mode: bool = False, provider: s
     m = models()
     name = provider or provider_for(task)
     cfg = m["providers"][name]
-    if name != "ollama":
+    if name not in LOCAL:
         with _lock:
             if _paid_calls[0] >= m.get("max_paid_calls_per_run", 0):
                 raise BudgetExceeded(f"Paid-call ceiling reached ({_paid_calls[0]}); {task} not sent to {name}")
@@ -117,7 +130,7 @@ def call_json(task: str, system: str, user: str, validate=None) -> tuple[dict, d
             return data, meta
         except (ValueError, KeyError, TypeError) as e:
             last_err = e
-    if models()["escalate"].get("on_invalid_json") and provider_for(task) == "ollama":
+    if models()["escalate"].get("on_invalid_json") and provider_for(task) in LOCAL:
         rev = models()["tasks"].get("review_thesis", "anthropic")
         text, meta = call(task, system, user, json_mode=True, provider=rev)
         data = parse_json(text)

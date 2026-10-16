@@ -80,8 +80,10 @@ def draft_system(market: str) -> str:
 
 def facts_pack(row: dict, metrics: dict, redflags: dict, filings: dict | None, jobs: dict | None,
                extracted: dict | None, max_points: dict) -> str:
-    def j(x):
-        return json.dumps(x, default=str, indent=0)[:12000]
+    # Budget: the whole facts pack must stay under ~7k tokens (~26k chars) so that
+    # rules + facts + answer fit a 16k context on a 16 GB Mac.
+    def j(x, limit=4000):
+        return json.dumps(x, default=str, separators=(",", ":"))[:limit]
 
     f = dict(filings or {})
     f.pop("_10k_items", None)
@@ -94,12 +96,12 @@ def facts_pack(row: dict, metrics: dict, redflags: dict, filings: dict | None, j
     return "\n\n".join([
         "SECTION MAXIMUMS: " + j(max_points),
         "SCREEN (Phase 0, Yahoo T3): " + j(row),
-        "METRICS (computed, annual unless noted): " + j(metrics),
+        "METRICS (computed, annual unless noted): " + j(metrics, 6000),
         "RED FLAGS (hard caps already applied by code): " + j({k: redflags[k] for k in ("hard_caps", "notes")}),
         "CHECK (confirm or reject each): " + j(redflags["check_caps"]),
         "FILINGS (T1): " + j(f),
         "HIRING (B2): " + j(jobs_view),
-        "ANNUAL REPORT EXTRACTS: " + j(extracted),
+        "ANNUAL REPORT EXTRACTS: " + j(extracted, 6000),
     ])
 
 

@@ -8,11 +8,22 @@
 providers:
   ollama:
     base_url: http://localhost:11434
-    # Pick by the Mac's memory. 16 GB: qwen3:8b · 32 GB: qwen3:14b or gemma3:27b-it-qat
-    # 64 GB+: qwen3:32b. Pull with `ollama pull <model>`.
-    model: qwen3:14b
-    num_ctx: 32768
+    # Kirti's Mac: 14" MacBook Pro, M5, 16 GB (~12 GB usable for models).
+    # Primary: Qwen 3.5 9B (~7 GB). Fallback: Gemma 4 E4B (~3 GB).
+    # Confirm the exact tags on ollama.com/library before pulling.
+    model: qwen3.5:9b
+    fallback_model: gemma4:e4b
+    # 16k fits a 9B model in 16 GB. Prompts are budgeted to stay under it
+    # (rules ~6k tokens + facts <=7k + answer ~2k).
+    num_ctx: 16384
     temperature: 0.2
+    timeout_s: 900
+  mlx:
+    # Alternative local server: `mlx_lm.server --model <hf-model>` (OpenAI-compatible).
+    # Faster prompt processing on M5. Route a task to it by setting it to "mlx" below.
+    base_url: http://localhost:8080/v1
+    model: mlx-community/Qwen3.5-9B-4bit
+    num_ctx: 16384
     timeout_s: 900
   anthropic:
     model: claude-sonnet-4-6
