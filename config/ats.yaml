@@ -1,0 +1,11 @@
+# Ticker -> job-board feed. Detection (fetch/jobs.py) fills gaps automatically;
+# add an entry here once you have confirmed a board, so later runs skip detection.
+#
+# Formats:
+#   TICKER: {platform: greenhouse|lever|ashby|smartrecruiters|workable, board: <id>}
+#   TICKER: {platform: workday, tenant: <tenant>, wd: wd1|wd3|wd5, site: <site>}
+#   TICKER: {platform: pageup, url: <job list URL>}
+#
+# Example (illustrative, check before relying on it):
+# XRO.AX: {platform: greenhouse, board: xero}
+{}

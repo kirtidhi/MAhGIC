@@ -1,0 +1,41 @@
+# Which model does which job. The pipeline is Python-first: stages 1–4
+# (universe, screen, fetch, analyse) use no LLM at all.
+#
+# Routing rule: every task runs on the local model unless it is listed under
+# `escalate`. Claude is used only for the final review of the best names per
+# track, or when the local model fails validation twice.
+
+providers:
+  ollama:
+    base_url: http://localhost:11434
+    # Pick by the Mac's memory. 16 GB: qwen3:8b · 32 GB: qwen3:14b or gemma3:27b-it-qat
+    # 64 GB+: qwen3:32b. Pull with `ollama pull <model>`.
+    model: qwen3:14b
+    num_ctx: 32768
+    temperature: 0.2
+    timeout_s: 900
+  anthropic:
+    model: claude-sonnet-4-6
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 8000
+  gemini:
+    model: gemini-3.1-pro-preview
+    api_key_env: GEMINI_API_KEY
+  openai:
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+
+tasks:
+  extract_filing: ollama     # map step: pull facts out of 10-K / annual report chunks
+  summarise_jobs: ollama     # B2: classify postings into strategic themes
+  draft_thesis: ollama       # B6 section scores + narrative, as JSON
+  review_thesis: anthropic   # second read of the top names only
+
+escalate:
+  # Send to the review provider when the local draft fails JSON validation twice.
+  on_invalid_json: true
+  # Review only the best N per track per market (Claude cost control).
+  review_top_n_per_track: 3
+
+# Hard ceiling on paid calls per run. 0 disables paid providers entirely.
+max_paid_calls_per_run: 12

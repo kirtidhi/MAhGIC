@@ -1,0 +1,42 @@
+# Machine-readable copy of playbook.md B6 and the Phase 0 screen.
+# The playbook is the source of truth; change both together.
+
+phase0:
+  survival_net_debt_ebitda_max: 2.0
+  fcf_max_yoy_fall: 0.50
+  curable_dip_min_drawdown: 0.25
+  insider_min_pct: 5.0
+  forward_pe: [0, 25]
+  deep_drawdown_checklist: 0.70
+  financial_industries: [bank, insurance, capital markets, asset management, mortgage, credit services]
+  cyclical_sectors: [Energy, Basic Materials]
+
+weights:          # sum to 10
+  three_q:
+    business: 1.0
+    management: 1.0
+    balance_sheet: 1.0
+  financials: 2.5
+  macro: 1.0
+  strategic_intent: 1.5
+  leadership: 1.0
+  regulatory: 1.0
+
+caps:             # lowest triggered cap wins
+  going_concern: 2
+  auditor_resignation_or_qualified: 3
+  pledge_over_50: 3
+  pledge_25_50_or_rising: 4
+  ocf_below_ni_and_receivables_over_120: 4
+  guidance_misses_2plus: 5
+  dilution_over_5pct: 5
+
+hypothetical_8:   # all five needed for 8+, otherwise cap 7
+  max_mid_cycle_pe: 15
+  min_insider_pct: 10
+  required: [moat, valuation, curable_negative, net_cash_and_cash_real, insider_skin]
+
+flags:
+  receivable_days_max: 120
+  roic_min: 0.10
+  dilution_flag_pct: 3.0

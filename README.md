@@ -1,89 +1,98 @@
-# MA(h)GIC: Macro AI (hidden) Gem Intelligence Core
+# MA(h)GIC 2.0 — Macro AI (hidden) Gem Intelligence Core
 
-MA(h)GIC is an agentic AI system designed to discover hidden gems in the stock market by leveraging top-down macro analysis and deep financial evaluation. The "h" is hidden, just like the gems we find!
+MA(h)GIC finds undervalued companies using Ashish Chugh's Three Q framework (business,
+management, balance sheet) plus macro fit, hiring signals, leadership and regulatory checks.
+Version 2.0 is built to run **every company in an index, every month, on a local model**:
+the full ASX 200 and the US top 100 by market cap, with Claude used only for a second read
+of the best names.
 
-## Features
-- **Phase 1: Macro Brain** - Analyzes the global economic climate and derives strategic trends.
-- **Phase 1.5: Discovery Engine** - Generates a list of publicly traded companies aligned with the identified macro trends for a target country.
-- **Phase 2: Market Brain** - Rigorously evaluates each company's financials against the "Wisdom Corpus" to generate a Hidden Gem Score (0-10).
-- **Phase 3: Strategic Intent Analysis** - Deep-dives into job postings and strategic moves for high-scoring companies to uncover hidden R&D pipelines.
+v1 (the multi-brain prototype) is kept at tag [`v1.0`](../../tree/v1.0).
 
-## Outputs
-MA(h)GIC provides two distinct visualization options:
-1. **HTML Dashboard (`ui/dashboard.html`)**: A lightweight, portable dashboard that requires zero dependencies to view.
-2. **Streamlit App**: A premium, interactive data visualization dashboard.
+## What changed from v1
 
-### Dashboard Preview
-![Dashboard Preview](assets/dashboard.png)
+| | v1 | 2.0 |
+|---|---|---|
+| Universe | Model names 100 tickers from memory | Index CSV in `config/universes/` or Yahoo's screener API |
+| Numbers | 5 rows, missing filled with 0, today's FX on old quarters | Every B3 row, missing stays `null`, reporting currency kept |
+| Filings | 10-K cut at 60k chars; non-US = first DuckDuckGo hit | SEC submissions + XBRL + full 10-K split by Item; ASX announcements feed |
+| Hiring | Playwright + search, mostly empty; LinkedIn stub returned a canned line | Company's own ATS feed (Greenhouse, Lever, Ashby, SmartRecruiters, Workday, Workable, PageUp), monthly snapshots |
+| Scoring | Model gives a number | Python computes metrics and caps; model scores sections; Python applies caps and the "hypothetical 8" rule |
+| Models | One provider for everything | Per-task routing in `config/models.yaml`: Ollama by default, paid calls capped per run |
+| Runs | One shot | Six resumable stages, snapshots in `data/<date>/<market>/<universe>/` |
 
-### Example Output: Hidden Gem Thesis
-```json
-{
-  "ticker": "WIPRO.NS",
-  "score": 8,
-  "thesis": "1. **Macro Trends:** Fulfills AI and Cyber Security needs.\n2. **Job Postings:** Actively hiring 50+ AI/ML engineers.\n3. **Financials:** P/E of 20, zero debt, strong cash flow.\n4. **Wisdom Corpus:** Ashish Chugh model applies: 'Survival over Profits' -> strong balance sheet."
-}
+## Pipeline
+
+```
+1 universe  →  2 screen  →  3 fetch  →  4 analyse  →  5 draft  →  6 review + reports
+  Python        Python       Python       Python        local LLM    Claude (top 3/track)
+                Phase 0      T1/T2/T3     B3 metrics,   B6 section
+                6 tests      sources      red flags,    scores as
+                + tracks                  hard caps     JSON
 ```
 
-## Installation
+The rules live in `knowledge/base_layer.md` (dated global view: macro, cycle map, anchors,
+calibration) and `knowledge/playbook.md` (fixed method: B1–B6). The draft prompt is built
+from their sections; `config/scoring.yaml` holds the same weights and caps in machine form.
 
-### For Manual Users
-Ensure you have Python 3.8+ installed. 
+## Setup (Mac)
 
 ```bash
-git clone https://github.com/kirtidhi/MAhGIC.git
-cd MAhGIC
-
+git clone https://github.com/kirtidhi/MAhGIC.git && cd MAhGIC && git checkout v2
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-playwright install chromium
+cp .env.example .env            # set CONTACT_EMAIL (SEC needs it); ANTHROPIC_API_KEY optional
+set -a; source .env; set +a
 
-cp .env.example .env
+# Local model — see docs/LOCAL_LLM.md for which model fits your Mac
+brew install ollama             # or download the app from ollama.com
+ollama serve &                  # the desktop app does this for you
+ollama pull qwen3:14b
+
+python -m mahgic check          # confirms Ollama, the model, and keys
+pytest -q                       # offline tests, no network
 ```
 
-### For AI Agents and CLI Users
-Alternatively, simply ask your agentic tool to handle the installation and setup for you!
-
-## Environment Variables
-MA(h)GIC uses `python-dotenv` to securely load API keys. Create a `.env` file in the root directory (you can copy `.env.example` if it exists) and add your keys:
-```env
-GEMINI_API_KEY=your_gemini_key
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
-PROXYCURL_API_KEY=your_proxycurl_key
-```
-
-## Execution
-
-
+## Running
 
 ```bash
-python run.py --provider gemini --country USA --limit 50 --streamlit
+# Full monthly run, one market at a time (resumable: re-run the same command after a stop)
+python -m mahgic run --market asx --universe asx200
+python -m mahgic run --market us  --universe us_top100
+
+# US small/mid-cap Hidden gems from Yahoo's screener
+python -m mahgic run --market us --universe us_smallmid
+
+# Pieces
+python -m mahgic run --market us --universe us_top100 --stages universe,screen,fetch,analyse   # no LLM
+python -m mahgic run --market us --universe us_top100 --tickers ADBE,CPRT --force               # redo two names
+python -m mahgic status --market us --universe us_top100                                         # progress
 ```
 
-### CLI Arguments:
-- `--provider`: `gemini`, `openai`, or `claude`
-- `--country`: Target country for discovery
-- `--limit`: Number of companies to analyze
-- `--streamlit`: Flag to launch the interactive dashboard
+Outputs per run, under `data/<date>/<market>/<universe>/`:
 
-If arguments are missing, the script will attempt to fallback to an interactive terminal prompt.
+- `screen.csv` — Phase 0 for every company, with tracks and flags
+- `<TICKER>/thesis_<TICKER>.md` — the thesis: score, section table, caps, key numbers, evidence, verdict
+- `summary_<market>_<universe>.md` — every company ranked within its track
 
-## How It Works
-The pipeline executes sequentially:
-1. `brains/macro_brain.py` identifies global trends.
-2. `engines/discovery_engine.py` maps trends to specific tickers.
-3. `brains/market_brain.py` pulls historical financial data and evaluates using the `wisdom_corpus.txt` (via ChromaDB RAG).
-4. `engines/orchestrator.py` structures the final "Hidden Gem Strategic Thesis".
-5. `run.py` compiles everything into `ui/dashboard.html`.
+Time on a 32 GB Apple-silicon Mac with `qwen3:14b`: stages 1–4 take about 15–30 minutes per
+market; drafting takes about 3–8 minutes a company (six 10-K chunks plus the thesis), so the
+ASX 200 plus the US top 100 is roughly a weekend. Use `--max-chunks 3` to halve it.
 
-## Roadmap
-- [x] Phase 1: Core LLM logic for financial parsing
-- [x] Phase 2: RAG Wisdom Brain (ChromaDB Integration)
-- [x] Phase 3: Job Scraper Integration (using Playwright + DuckDuckGo)
+## Tracks, not cuts
 
-## Contributing
-We welcome contributions! Please open an issue before submitting major pull requests.
-1. Fork the repo.
-2. Create a feature branch.
-3. Commit your changes.
-4. Push to the branch and submit a PR.
+Every company is scored. The screen labels each one **Hidden gem** (small, under-covered) or
+**Fallen quality** (large, out of favour); size never removes a company.
+
+## Known gaps
+
+- ASX annual reports (PDF) are not read yet; ASX B4 relies on the announcements feed.
+- Guidance credibility is judged by the model from filings; there is no structured history yet.
+- Valuation against a stock's own 5-year P/E range is not computed yet (`pe_5y_median_proxy`).
+- India is paused (needs `niftyindices.com` or `nsearchives.nseindia.com`).
+- The ASX announcements endpoint is undocumented; the first local run should confirm it.
+- Other investor frameworks (Buffett, Lynch, Fisher) will widen the Three Q section later;
+  `knowledge/wisdom_corpus.txt` is kept for that.
+
+See `docs/LEARNINGS.md` for what the October 2026 run taught us.
+
+*Framework method, not financial advice.*

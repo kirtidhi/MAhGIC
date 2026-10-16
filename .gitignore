@@ -1,13 +1,14 @@
+# 2.0
+data/
+*.tmp
+.DS_Store
+.venv/
+# carried over from v1
 venv/
 __pycache__/
 *.pyc
 .env
 results.json
 dashboard.html
-ui/dashboard.html
-streamlit.log
-GEMS.zip
-brains/chroma_db/
 results_cache/
-claude_content.txt
 *.chat.txt

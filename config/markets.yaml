@@ -1,0 +1,51 @@
+# Markets MA(h)GIC 2.0 can run. Each market names its universes, data sources
+# and the local factors the draft prompt must apply (see knowledge/base_layer.md A5).
+#
+# A universe is either a CSV in config/universes/ (column: ticker) or a Yahoo
+# screener query. `top_n_by_market_cap` trims a CSV universe after the screen
+# stage has fetched market caps (e.g. the US top 100 out of the S&P 500).
+
+asx:
+  name: Australia (ASX)
+  yahoo_suffix: ".AX"
+  currency: AUD
+  filings: asx            # fetch/asx.py — announcements API, Appendix 4C/4D/4E
+  ten_year_yield_ticker: "^AXJO"   # placeholder: set the 10y source in base_layer A5
+  universes:
+    asx200:
+      csv: asx200.csv
+      tracks: [fallen_quality, hidden_gem]
+
+us:
+  name: United States
+  yahoo_suffix: ""
+  currency: USD
+  filings: sec            # fetch/sec.py — XBRL companyfacts, submissions, 10-K text
+  universes:
+    us_top100:
+      csv: sp500.csv
+      top_n_by_market_cap: 100
+      tracks: [fallen_quality]
+    sp500:
+      csv: sp500.csv
+      tracks: [fallen_quality]
+    us_smallmid:
+      yahoo_screener:
+        region: us
+        exchanges: [NMS, NYQ, NGM, NCM, ASE]
+        market_cap: [300_000_000, 5_000_000_000]
+        min_price: 2
+        min_insider_pct: 5
+        positive_fcf: true
+        positive_ocf: true
+      tracks: [hidden_gem]
+
+# India is paused (Oct 2026). It needs niftyindices.com or nsearchives.nseindia.com
+# reachable from wherever the pipeline runs.
+india:
+  enabled: false
+  name: India (NSE)
+  yahoo_suffix: ".NS"
+  currency: INR
+  filings: none
+  universes: {}

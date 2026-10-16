@@ -1,0 +1,197 @@
+ticker,name,sector
+TUA.AX,TUAS LTD FPO [TUA],Communication Services
+ARB.AX,ARB CORP FPO [ARB],Consumer Cyclical
+PLS.AX,PLSGROUP FPO [PLS],Basic Materials
+REG.AX,REG HEALTH FPO [REG],Healthcare
+CYL.AX,CAT METALS FPO [CYL],Basic Materials
+YAL.AX,YANCOAL FPO [YAL],Energy
+MIN.AX,MINERALRES FPO [MIN],Basic Materials
+GGP.AX,GREATLAND FPO [GGP],Basic Materials
+PMV.AX,PREM INV. FPO [PMV],Consumer Cyclical
+FMG.AX,FORTESCUE FPO [FMG],Basic Materials
+RSG.AX,RESOLUTE FPO [RSG],Basic Materials
+REA.AX,REA GROUP FPO [REA],Communication Services
+SGM.AX,SIMS METAL FPO [SGM],Basic Materials
+PRN.AX,PERENTI FPO [PRN],Basic Materials
+SPK.AX,SPARK NZ FPO NZX [SPK],Communication Services
+CTD.AX,CORP TRAV FPO [CTD],Consumer Cyclical
+LTR.AX,LIONTOWN FPO [LTR],Basic Materials
+XRO.AX,XERO FPO [XRO],Technology
+WTC.AX,WISETECH FPO [WTC],Technology
+ASB.AX,AUSTAL LTD FPO [ASB],Industrials
+COH.AX,COCHLEAR FPO [COH],Healthcare
+SEK.AX,SEEK FPO [SEK],Communication Services
+APE.AX,EAGERS FPO [APE],Consumer Cyclical
+HVN.AX,HARVEY FPO [HVN],Consumer Cyclical
+LYC.AX,LYNAS FPO [LYC],Basic Materials
+PDN.AX,PALADIN FPO [PDN],Energy
+ORA.AX,ORORA FPO [ORA],Consumer Cyclical
+IGO.AX,IGOLIMITED FPO [IGO],Basic Materials
+CAR.AX,CAR GROUP FPO [CAR],Communication Services
+LOV.AX,LOVISA FPO [LOV],Consumer Cyclical
+EBO.AX,EBOS FPO NZ [EBO],Healthcare
+JBH.AX,JB HI-FI FPO [JBH],Consumer Cyclical
+FLT.AX,FLIGHT CTR FPO [FLT],Consumer Cyclical
+BPT.AX,,
+WGX.AX,WESTGOLD FPO [WGX],Basic Materials
+WOR.AX,WORLEY FPO [WOR],Energy
+NIC.AX,NICKLINDUS FPO [NIC],Basic Materials
+A2M.AX,A2 MILK FPO NZ [A2M],Consumer Defensive
+RRL.AX,REGIS FPO [RRL],Basic Materials
+IMD.AX,IMDEX FPO [IMD],Industrials
+TAH.AX,TABCORP FPO [TAH],Consumer Cyclical
+EDV.AX,ENDEAVOUR FPO [EDV],Consumer Defensive
+RMS.AX,RAMELIUS FPO [RMS],Basic Materials
+EVN.AX,EVOLUTION FPO [EVN],Basic Materials
+VGN.AX,VIRGIN AUS FPO [VGN],Industrials
+BGL.AX,BELLEVUE FPO [BGL],Basic Materials
+WHC.AX,WHITEHAVEN FPO [WHC],Energy
+CMM.AX,CAPMETALS FPO [CMM],Basic Materials
+DRR.AX,DETERRA RE FPO [DRR],Basic Materials
+EMR.AX,EMERALD FPO [EMR],Basic Materials
+OBM.AX,ORABANDA FPO [OBM],Basic Materials
+GMD.AX,GEN MINS FPO [GMD],Basic Materials
+MND.AX,MONADEL FPO [MND],Industrials
+RIO.AX,RIO TINTO FPO [RIO],Basic Materials
+GNE.AX,GENESIS NZ FPO NZX [GNE],Utilities
+PDI.AX,PDIGOLD FPO [PDI],Basic Materials
+VNT.AX,VENTIA FPO [VNT],Industrials
+ALK.AX,,
+ALL.AX,ARISTOCRAT FPO [ALL],Consumer Cyclical
+WAF.AX,WESTAFRICA FPO [WAF],Basic Materials
+BGA.AX,BEGA FPO [BGA],Consumer Defensive
+360.AX,LIFE360 CDI 3:1 [360],Technology
+CIA.AX,CHAMP IRON FPO [CIA],Basic Materials
+SNZ.AX,SUMMERSET FPO NZX [SNZ],Healthcare
+AAI.AX,ALCOA CORP CDI 1:1 [AAI],Basic Materials
+NWL.AX,NETWEALTH FPO [NWL],Technology
+RYM.AX,RYM FPO NZX [RYM],Healthcare
+PME.AX,PROMEDICUS FPO [PME],Healthcare
+LNW.AX,LIGHT & WO CDI 1:1 [LNW],Consumer Cyclical
+TPG.AX,TPGLIMITED FPO [TPG],Communication Services
+CHC.AX,CHARTER HG STP FORUS [CHC],Real Estate
+MGR.AX,MIRVAC GRP STAPLED [MGR],Real Estate
+ALX.AX,ATLSRTERIA FPOSFORUS [ALX],Industrials
+BXB.AX,BRAMB LTD FPO [BXB],Industrials
+SUL.AX,SUPARETAIL FPO [SUL],Consumer Cyclical
+SHL.AX,SONIC HLTH FPO [SHL],Healthcare
+TNE.AX,TECH ONE FPO [TNE],Technology
+CSC.AX,CAPSTONE CDI 1:1 [CSC],Basic Materials
+NST.AX,NTH STAR FPO [NST],Basic Materials
+RMD.AX,RESMED CDI 10:1 [RMD],Healthcare
+FRW.AX,FREIGHTWAY FPO NZX [FRW],Industrials
+DOW.AX,DOWNER EDI FPO [DOW],Industrials
+AGL.AX,AGL ENERGY FPO [AGL],Utilities
+SMR.AX,STANMORE FPO [SMR],Basic Materials
+RDX.AX,REDOX LTD FPO [RDX],Basic Materials
+CSL.AX,CSL FPO [CSL],Healthcare
+MEZ.AX,MERIDIAN FPO NZX [MEZ],Utilities
+VAU.AX,VLTMINLTD FPO [VAU],Basic Materials
+ORI.AX,,
+BSL.AX,,
+NEM.AX,NEWMONT CDI 1:1 [NEM],Basic Materials
+BRG.AX,BREVILLE FPO [BRG],Consumer Cyclical
+WDS.AX,WOODSIDE FPO [WDS],Energy
+NWH.AX,NRWHOLDLTD FPO [NWH],Industrials
+BHP.AX,BHP GROUP FPO [BHP],Basic Materials
+CWY.AX,CLEANAWAY FPO [CWY],Industrials
+NHC.AX,NEW HOPE FPO [NHC],Energy
+SFR.AX,SANDFIRE FPO [SFR],Basic Materials
+PRU.AX,PERSEUS FPO [PRU],Basic Materials
+NWS.AX,NEWS CORP B VOTING [NWS],Communication Services
+CDA.AX,CODAN FPO [CDA],Technology
+DNL.AX,DYNO NOBEL FPO [DNL],Basic Materials
+VEA.AX,VIVA E GRP FPO [VEA],Energy
+RWC.AX,RWC CORP FPO [RWC],Industrials
+ANN.AX,ANSELL FPO [ANN],Healthcare
+DRO.AX,DRONE FPO [DRO],Industrials
+DYL.AX,D YELLOW FPO [DYL],Energy
+PXA.AX,PEXAGROUP FPO [PXA],Technology
+ZIM.AX,ZIMPLATS FPO 10CUS [ZIM],Basic Materials
+4DX.AX,4DMEDICAL FPO [4DX],Healthcare
+SGP.AX,STOCKLAND. STAPLED [SGP],Real Estate
+MSB.AX,MESOBLAST FPO [MSB],Healthcare
+SGH.AX,SGHLIMITED FPO [SGH],
+DXS.AX,DEXUS STAPLED [DXS],Real Estate
+EOS.AX,ELEC OPTIC FPO [EOS],Industrials
+GMG.AX,GOOD GROUP STAPLED [GMG],Real Estate
+HDN.AX,HOMECO DNR ORD UNITS [HDN],Real Estate
+MTS.AX,,
+QAN.AX,QANTAS FPO [QAN],Industrials
+FBU.AX,FLETBUILD FPO NZX [FBU],Basic Materials
+ALQ.AX,ALS FPO [ALQ],Industrials
+CEN.AX,CONTACT EN FPO NZX [CEN],Utilities
+JHX.AX,J HARDIE CDI 1:1 [JHX],Basic Materials
+TLS.AX,TELSTRA FPO [TLS],Communication Services
+AMC.AX,AMCOR PLC CDI 1:1 [AMC],Consumer Cyclical
+AZJ.AX,AURIZON FPO [AZJ],Industrials
+VCX.AX,VICINITY STAPLED [VCX],Real Estate
+SIG.AX,SIGMAHEALT FPO [SIG],Healthcare
+TWE.AX,TREA WINE FPO [TWE],Consumer Defensive
+BWP.AX,BWPPROPGP STAPLED [BWP],Real Estate
+ORG.AX,ORIGIN ENE FPO [ORG],Utilities
+EVT.AX,EVTLTD FPO [EVT],Communication Services
+MCY.AX,MERCURY NZ FPO NZX [MCY],Utilities
+AMP.AX,AMP FPO [AMP],Financial Services
+S32.AX,SOUTH32 FPO [S32],Basic Materials
+WOW.AX,,
+COL.AX,COLESGROUP FPO [COL],Consumer Defensive
+REH.AX,REECE FPO [REH],Industrials
+RHC.AX,RAMSAY FPO [RHC],Healthcare
+APA.AX,APA GROUP STAPLED [APA],Utilities
+STO.AX,,
+QUB.AX,QUBE FPO [QUB],Industrials
+FPH.AX,F&P HEALTH FPO NZX [FPH],Healthcare
+LLC.AX,LEND LEASE STAPLED [LLC],Real Estate
+ZIP.AX,ZIPCOLTD FPO [ZIP],Financial Services
+ILU.AX,ILUKA RES FPO [ILU],Basic Materials
+NXT.AX,NEXTDC FPO [NXT],Technology
+NXG.AX,NEXGEN CDI 1:1 [NXG],Energy
+CLW.AX,CHTR H LWR STAPLED [CLW],Real Estate
+CIP.AX,CEN I REIT ORD UNITS [CIP],Real Estate
+CNU.AX,CHORUS FPO NZX [CNU],Communication Services
+GPT.AX,GPT STAPLED [GPT],Real Estate
+SCG.AX,SCENTRE STAPLED [SCG],Real Estate
+CQR.AX,CHRETAILRT ORD UNITS [CQR],Real Estate
+WES.AX,WESFARMER FPO [WES],Consumer Cyclical
+TCL.AX,TRANSURBAN STAPLED [TCL],Industrials
+TLC.AX,LOTTERY FPO [TLC],Consumer Cyclical
+RGN.AX,REGION GP STAPLED [RGN],Real Estate
+DBI.AX,DALRYMPLE STAPLED [DBI],Industrials
+ALD.AX,AMPOL FPO [ALD],Energy
+ASX.AX,ASX FPO [ASX],Financial Services
+IFT.AX,INFRATIL FPO NZX [IFT],Industrials
+AIA.AX,AUCK AIRPT FPO NZX [AIA],Industrials
+TLX.AX,TELIXPHARM FPO [TLX],Healthcare
+GDG.AX,GEN DEV FPO [GDG],Financial Services
+WAM.AX,WAMCAPITAL FPO [WAM],Financial Services
+HUB.AX,HUB24LTD FPO [HUB],Financial Services
+GQG.AX,GQGPARTNRS CDI FORUS [GQG],Financial Services
+PNI.AX,PINNACLE FPO [PNI],Financial Services
+AUB.AX,AUB GROUP FPO [AUB],Financial Services
+MFG.AX,MAG FINC FPO [MFG],Financial Services
+NAB.AX,,
+BEN.AX,BEN ADE BK FPO [BEN],Financial Services
+WBC.AX,WESTPAC FPO [WBC],Financial Services
+PPT.AX,PERPETUAL FPO [PPT],Financial Services
+CBA.AX,CWLTH BANK FPO [CBA],Financial Services
+BFL.AX,BSP F GRP FPO [BFL],Financial Services
+NHF.AX,NIBHOLDING FPO [NHF],Financial Services
+MXT.AX,METMASTER ORD UNITS [MXT],Financial Services
+ARG.AX,ARGO FPO [ARG],Financial Services
+L1G.AX,L1 GROUP FPO [L1G],Financial Services
+SDF.AX,STEADFAST FPO [SDF],Financial Services
+BOQ.AX,BANK QLD FPO [BOQ],Financial Services
+AFI.AX,AUS.FOUND. FPO [AFI],Financial Services
+MPL.AX,MEDIBANK FPO [MPL],Financial Services
+WLE.AX,WAMLEADERS FPO [WLE],Financial Services
+LSF.AX,L1 LS FUND FPO [LSF],Financial Services
+CPU.AX,,
+SOL.AX,SOUL W.H. FPO [SOL],Financial Services
+SUN.AX,SUNCORP FPO [SUN],Financial Services
+CGF.AX,CHALLENGER FPO [CGF],Financial Services
+ANZ.AX,,
+MFF.AX,MFFCAPITAL FPO [MFF],Financial Services
+IAG.AX,INSUR.AUST FPO [IAG],Financial Services
+MQG.AX,,
+QBE.AX,QBE INSUR. FPO [QBE],Financial Services
