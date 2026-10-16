@@ -107,3 +107,13 @@ def test_jobs_summary_themes():
     s = jobs.summarise([{"title": "Senior Machine Learning Engineer"}, {"title": "Account Executive"},
                         {"title": "Plant Technician"}])
     assert s["total"] == 3 and s["themes"]["ai_data"] == 1 and s["themes"]["sales_gtm"] == 1
+
+
+def test_levered_fcf_above_ocf_is_unknown():
+    r = phase0({**INFO, "freeCashflow": 400e6, "operatingCashflow": 250e6}, cfg=CFG)
+    assert r["t3_fcf"] is None and r["flag_fcf_suspect"]
+
+
+def test_currency_mismatch_flag():
+    r = phase0({**INFO, "currency": "USD", "financialCurrency": "CNY"}, cfg=CFG)
+    assert r["flag_currency_mismatch"]

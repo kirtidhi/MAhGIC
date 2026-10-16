@@ -69,8 +69,12 @@ def phase0(info: dict, fcf_prev: float | None = None, cfg: dict | None = None) -
             return None
         return ocf > 0 and (not _ok(ni) or ocf >= ni)
 
+    # Yahoo's info FCF is levered FCF and can exceed operating cash flow (84 of 433 US
+    # small caps in Oct 2026). Treat that as unknown rather than a pass.
+    fcf_suspect = _ok(fcf) and _ok(ocf) and fcf > ocf > 0
+
     def fcf_ok():
-        if not _ok(fcf):
+        if not _ok(fcf) or fcf_suspect:
             return None
         if fcf <= 0:
             return False
@@ -110,6 +114,9 @@ def phase0(info: dict, fcf_prev: float | None = None, cfg: dict | None = None) -
         "flag_cyclical": sector in c["cyclical_sectors"],  # judge on mid-cycle EPS
         "flag_deep_drawdown": drawdown is not None and drawdown > c["deep_drawdown_checklist"],
         # Yahoo counts parents/governments/PE as insiders (REA: News Corp). Large stakes need a B5 look.
+        "flag_fcf_suspect": bool(fcf_suspect),
+        # Statements in another currency than the quote (e.g. CHA reports in CNY): $ ratios unreliable
+        "flag_currency_mismatch": bool(g("financialCurrency") and g("currency") and g("financialCurrency") != g("currency")),
         "flag_insider_check": insiders is not None and insiders >= 0.20,
         # Coverage, not size, is the better "hidden" test (Oct 2026 run: ASX gems had 7-9 brokers)
         "analyst_count": g("numberOfAnalystOpinions"),

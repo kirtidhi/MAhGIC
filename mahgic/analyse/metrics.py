@@ -105,7 +105,8 @@ def compute(info: dict, fund: dict, cfg: dict) -> dict:
         "cwip_latest": _first(a.get("cwip")),
         "cwip_trend": trend(a.get("cwip")),
         "sbc_to_revenue": _div(_first(a.get("sbc")), rev0),
-        "fcf_yield": _div(g("freeCashflow"), mcap),
+        # statement FCF over market cap, only when both are in the same currency
+        "fcf_yield": _div(fcf0, mcap) if (fund or {}).get("currency") == (fund or {}).get("quote_currency") else None,
         "earnings_yield": _div(1, g("forwardPE")) if g("forwardPE") and g("forwardPE") > 0 else None,
         "forward_pe": g("forwardPE"),
         "trailing_pe": g("trailingPE"),
