@@ -36,6 +36,8 @@ def _ollama(system: str, user: str, cfg: dict, json_mode: bool) -> str:
     }
     if json_mode:
         body["format"] = "json"
+    if "think" in cfg:  # thinking models (Qwen 3.5): off by default, much faster for extraction
+        body["think"] = cfg["think"]
     r = requests.post(f"{cfg['base_url']}/api/chat", json=body, timeout=cfg.get("timeout_s", 900))
     r.raise_for_status()
     text = r.json()["message"]["content"]
