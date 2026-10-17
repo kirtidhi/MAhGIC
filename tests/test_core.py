@@ -117,3 +117,23 @@ def test_levered_fcf_above_ocf_is_unknown():
 def test_currency_mismatch_flag():
     r = phase0({**INFO, "currency": "USD", "financialCurrency": "CNY"}, cfg=CFG)
     assert r["flag_currency_mismatch"]
+
+
+def test_ollama_thinking_kept_out_of_json_and_overflow_detected(monkeypatch):
+    import pytest
+    from mahgic.llm import providers
+
+    class R:
+        def __init__(self, d): self.d = d
+        def raise_for_status(self): pass
+        def json(self): return self.d
+
+    cfg = {"model": "m", "base_url": "http://x", "think": True}
+    ok = {"message": {"content": '{"a": 1}', "thinking": "long reasoning"}, "done_reason": "stop",
+          "prompt_eval_count": 100, "eval_count": 50}
+    monkeypatch.setattr(providers.requests, "post", lambda *a, **k: R(ok))
+    assert providers._ollama("s", "u", cfg, True) == '{"a": 1}'
+    assert providers._last_stats["thinking_chars"] == len("long reasoning")
+    monkeypatch.setattr(providers.requests, "post", lambda *a, **k: R({**ok, "done_reason": "length"}))
+    with pytest.raises(providers.ContextOverflow):
+        providers._ollama("s", "u", cfg, True)

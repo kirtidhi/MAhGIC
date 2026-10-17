@@ -27,21 +27,43 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class ContextOverflow(ValueError):
+    """The model ran out of context (prompt + thinking + answer > num_ctx)."""
+
+
 def _ollama(system: str, user: str, cfg: dict, json_mode: bool) -> str:
     body = {
         "model": cfg["model"],
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "stream": False,
-        "options": {"num_ctx": cfg.get("num_ctx", 32768), "temperature": cfg.get("temperature", 0.2)},
+        "options": {"num_ctx": cfg.get("num_ctx", 16384), "temperature": cfg.get("temperature", 0.2)},
     }
     if json_mode:
         body["format"] = "json"
-    if "think" in cfg:  # thinking models (Qwen 3.5): off by default, much faster for extraction
+    if "think" in cfg:
+        # With think set explicitly, Ollama returns the reasoning in message.thinking and
+        # keeps message.content clean, so JSON parsing is unaffected.
         body["think"] = cfg["think"]
-    r = requests.post(f"{cfg['base_url']}/api/chat", json=body, timeout=cfg.get("timeout_s", 900))
+    r = requests.post(f"{cfg['base_url']}/api/chat", json=body, timeout=cfg.get("timeout_s", 1800))
     r.raise_for_status()
-    text = r.json()["message"]["content"]
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()  # qwen3 thinking traces
+    data = r.json()
+    msg = data.get("message", {})
+    _last_stats.update({
+        "thinking_chars": len(msg.get("thinking") or ""),
+        "prompt_tokens": data.get("prompt_eval_count"),
+        "output_tokens": data.get("eval_count"),
+        "done_reason": data.get("done_reason"),
+    })
+    if data.get("done_reason") == "length":
+        # Thinking used up the context before the answer finished. Retrying won't help;
+        # raise num_ctx (memory permitting) or shorten the prompt.
+        raise ContextOverflow(f"hit num_ctx={body['options']['num_ctx']} "
+                              f"(prompt {data.get('prompt_eval_count')}, output {data.get('eval_count')} tokens)")
+    text = msg.get("content") or ""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()  # models that inline their thinking
+
+
+_last_stats: dict = {}
 
 
 def _mlx(system: str, user: str, cfg: dict, json_mode: bool) -> str:
@@ -105,9 +127,10 @@ def call(task: str, system: str, user: str, json_mode: bool = False, provider: s
                 raise BudgetExceeded(f"Paid-call ceiling reached ({_paid_calls[0]}); {task} not sent to {name}")
             _paid_calls[0] += 1
     t0 = time.time()
+    _last_stats.clear()
     text = IMPL[name](system, user, cfg, json_mode)
     return text, {"provider": name, "model": cfg["model"], "seconds": round(time.time() - t0, 1),
-                  "chars_in": len(system) + len(user), "chars_out": len(text)}
+                  "chars_in": len(system) + len(user), "chars_out": len(text), **_last_stats}
 
 
 def parse_json(text: str) -> dict:
@@ -121,9 +144,13 @@ def call_json(task: str, system: str, user: str, validate=None) -> tuple[dict, d
     """Local first; on invalid JSON retry once locally, then escalate if configured."""
     last_err = None
     for attempt in range(2):
-        text, meta = call(task, system, user if attempt == 0 else
-                          user + "\n\nYour last reply was not valid JSON for the schema. Reply with JSON only.",
-                          json_mode=True)
+        try:
+            text, meta = call(task, system, user if attempt == 0 else
+                              user + "\n\nYour last reply was not valid JSON for the schema. Reply with JSON only.",
+                              json_mode=True)
+        except ContextOverflow as e:  # a local retry would overflow again
+            last_err = e
+            break
         try:
             data = parse_json(text)
             if validate:

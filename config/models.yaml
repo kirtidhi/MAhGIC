@@ -17,10 +17,12 @@ providers:
     # (rules ~6k tokens + facts <=7k + answer ~2k).
     num_ctx: 16384
     temperature: 0.2
-    timeout_s: 900
-    # Qwen 3.5 "thinks" before answering by default; that is slow and not needed for
-    # structured extraction. Set true to compare quality on a few names.
-    think: false
+    timeout_s: 1800
+    # Thinking on: time is not a constraint, judgement quality is. Thinking tokens share
+    # num_ctx with the prompt and answer; if a call stops with "hit num_ctx", raise
+    # num_ctx (e.g. 24576) if memory allows. Each draft records thinking/prompt/output
+    # token counts in its _meta so the first test shows the real budget.
+    think: true
   mlx:
     # Alternative local server: `mlx_lm.server --model <hf-model>` (OpenAI-compatible).
     # Faster prompt processing on M5. Route a task to it by setting it to "mlx" below.
