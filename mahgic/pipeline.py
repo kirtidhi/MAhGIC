@@ -240,19 +240,25 @@ class Pipeline:
         if not gd:
             return None
         per_doc, other, dropped = [], [], 0
-        for doc in gd.get("docs", []):
+        previous: list[str] = []  # read oldest first so each release is compared with earlier guidance
+        for doc in sorted(gd.get("docs", []), key=lambda d: d["date"]):
+            prev = ("PREVIOUS GUIDANCE (earlier releases, for comparison):\n" + "\n".join(previous[-15:]) + "\n\n"
+                    if previous else "")
             try:
                 data, _ = llm.call_json("extract_guidance", prompts.GUIDANCE_SYSTEM,
-                                        f"DOCUMENT ({doc['date']}, {doc.get('title')}):\n\n{doc['text']}")
+                                        f"{prev}DOCUMENT ({doc['date']}, {doc.get('title')}):\n\n{doc['text']}")
             except Exception as e:
                 log.warning("%s guidance %s failed: %s", t, doc.get("date"), e)
                 continue
             kept, n_drop = guidance_mod.verify(data.get("statements") or [], doc["text"])
             dropped += n_drop
+            previous += [f"{doc['date']}: {st.get('metric')} ({st.get('period')}): {st.get('guidance_text')}"
+                         for st in kept if st.get("guidance_text")]
             per_doc.append({"date": doc["date"], "title": doc.get("title"), "statements": kept})
             other += [f"{doc['date']}: {x}" for x in (data.get("other_events") or [])
                       if str(x).strip().lower() not in JUNK][:4]
         summary = guidance_mod.summarise(per_doc, gd.get("headline_events"))
+        per_doc.sort(key=lambda d: d["date"], reverse=True)
         rec = {"status": "ok" if per_doc else gd.get("status", "no_docs"), "docs_read": len(per_doc),
                "statements_dropped_unquoted": dropped, **summary, "other_events": other[:10],
                "per_doc": per_doc}

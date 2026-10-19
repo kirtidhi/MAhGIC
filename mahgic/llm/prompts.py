@@ -55,7 +55,9 @@ For each statement give:
 - guidance_text: the guidance as stated (range or number)
 - change: "new" | "reaffirmed" | "raised" | "lowered" | "withdrawn" | "none"
   ("lowered" includes narrowing to a lower midpoint and "amended" guidance that is below the
-  previous range; "withdrawn" includes a target the company no longer expects to meet)
+  previous range; "withdrawn" includes a target the company no longer expects to meet).
+  Compare with PREVIOUS GUIDANCE (from the company's earlier releases) when it is given: the same
+  metric and period now guided lower = "lowered", higher = "raised", unchanged = "reaffirmed".
 - vs_prior_guidance: for a reported result, did it "beat" | "met" | "missed" the company's own
   earlier guidance? Use "n/a" if the document does not say.
 - quote: the exact sentence (at least 8 words) the statement comes from

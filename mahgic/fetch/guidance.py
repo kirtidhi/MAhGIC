@@ -56,14 +56,25 @@ def pdf_text(data: bytes, pages: int = 12) -> str:
 
 
 # ---------- US (SEC) ----------
+EX99 = re.compile(r"(?i)ex(?:hibit)?[-_ .]?99|dex99")
+
+
 def _exhibit(cik: int, acc: str) -> str | None:
+    """The results press release in an 8-K / 6-K: the largest EX-99 document. (Oct 2026:
+    'exhibit_99-1.htm' style names were missed, so 6-K covers were read instead; INTU's
+    first EX-99 was a 3 kB attachment, not the release.)"""
     from . import sec
 
     base = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc.replace('-', '')}/"
     items = sec._get(base + "index.json").json().get("directory", {}).get("item", [])
-    names = [i["name"] for i in items if i.get("name", "").lower().endswith((".htm", ".html", ".txt"))]
-    ex = [n for n in names if re.search(r"(?i)ex[-_]?99|exhibit99|ex991|dex99", n)]
-    return base + (ex[0] if ex else names[0]) if names else None
+    docs = [i for i in items if i.get("name", "").lower().endswith((".htm", ".html", ".txt"))
+            and not i["name"].lower().endswith("-index.htm")]
+    ex = [i for i in docs if EX99.search(i["name"])]
+    pool = ex or docs
+    if not pool:
+        return None
+    best = max(pool, key=lambda i: int(i.get("size") or 0) if str(i.get("size") or "").isdigit() else 0)
+    return base + best["name"]
 
 
 def us_docs(cik: int, filings: list[dict], since: str, foreign: bool, max_docs: int = 5) -> list[dict]:

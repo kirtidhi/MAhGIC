@@ -203,3 +203,9 @@ def test_tasks_route_to_two_local_models():
     assert providers.provider_for("extract_filing") == "ollama_fast"
     assert providers.provider_for("draft_thesis") == "ollama"
     assert providers.is_local("ollama_fast") and providers.impl_of("ollama_fast") == "ollama"
+
+
+def test_exhibit_name_pattern_covers_6k_styles():
+    for n in ("exhibit_99-1.htm", "ex99-1.htm", "ex-99_1.htm", "d123dex991.htm", "exhibit991.htm", "ex991.htm"):
+        assert guidance.EX99.search(n), n
+    assert not guidance.EX99.search("form6-k.htm")
