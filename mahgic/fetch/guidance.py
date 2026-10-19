@@ -48,11 +48,54 @@ def focus(text: str, chars: int = DOC_CHARS) -> str:
     return head + "".join("\n[...]\n" + text[a:b] for a, b in windows)[: chars - len(head)]
 
 
-def pdf_text(data: bytes, pages: int = 12) -> str:
-    from pypdf import PdfReader
+_JXA = r"""
+ObjC.import('Foundation');
+try { ObjC.import('PDFKit'); } catch (e) { ObjC.import('Quartz'); }
+function run(argv) {
+  var doc = $.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(argv[0]));
+  if (!doc || doc.isNil()) return '';
+  if (doc.isLocked) doc.unlockWithPassword('');
+  var n = Math.min(doc.pageCount, parseInt(argv[1])), out = [];
+  for (var i = 0; i < n; i++) { var s = doc.pageAtIndex(i).string; out.push(s.isNil() ? '' : ObjC.unwrap(s)); }
+  return out.join('\n');
+}
+"""
 
-    reader = PdfReader(io.BytesIO(data))
-    return "\n".join((p.extract_text() or "") for p in reader.pages[:pages])
+
+def _pdf_text_macos(data: bytes, pages: int) -> str:
+    """Fallback on a Mac: macOS's own PDFKit opens the AES-encrypted ASX PDFs (empty password)
+    without any Python package."""
+    import os
+    import subprocess
+    import sys
+    import tempfile
+
+    if sys.platform != "darwin":
+        raise RuntimeError("macOS PDFKit fallback only available on a Mac")
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+        f.write(data)
+        path = f.name
+    try:
+        r = subprocess.run(["osascript", "-l", "JavaScript", "-e", _JXA, path, str(pages)],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.strip()[:200])
+        return r.stdout
+    finally:
+        os.unlink(path)
+
+
+def pdf_text(data: bytes, pages: int = 12) -> str:
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(data))
+        if reader.is_encrypted:
+            reader.decrypt("")  # needs the cryptography package for AES
+        return "\n".join((p.extract_text() or "") for p in reader.pages[:pages])
+    except Exception as e:
+        log.info("pypdf could not read a PDF (%s); trying macOS PDFKit", str(e)[:80])
+        return _pdf_text_macos(data, pages)
 
 
 # ---------- US (SEC) ----------
