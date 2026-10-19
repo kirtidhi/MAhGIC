@@ -61,7 +61,12 @@ def _ollama(system: str, user: str, cfg: dict, json_mode: bool) -> str:
         # With think set explicitly, Ollama returns the reasoning in message.thinking and
         # keeps message.content clean, so JSON parsing is unaffected.
         body["think"] = cfg["think"]
-    r = requests.post(f"{cfg['base_url']}/api/chat", json=body, timeout=cfg.get("timeout_s", 1800))
+    for attempt in range(2):  # Ollama occasionally returns 500 while swapping models
+        r = requests.post(f"{cfg['base_url']}/api/chat", json=body, timeout=cfg.get("timeout_s", 1800))
+        if getattr(r, "status_code", 200) < 500 or attempt == 1:
+            break
+        log.warning("Ollama %s on %s; retrying in 20 s", r.status_code, cfg["model"])
+        time.sleep(20)
     r.raise_for_status()
     data = r.json()
     msg = data.get("message", {})

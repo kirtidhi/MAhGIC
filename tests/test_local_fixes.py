@@ -209,3 +209,12 @@ def test_exhibit_name_pattern_covers_6k_styles():
     for n in ("exhibit_99-1.htm", "ex99-1.htm", "ex-99_1.htm", "d123dex991.htm", "exhibit991.htm", "ex991.htm"):
         assert guidance.EX99.search(n), n
     assert not guidance.EX99.search("form6-k.htm")
+
+
+def test_resale_shelf_means_no_insider_skin():
+    m = {"net_cash": True, "cash_is_real": True, "valuation_test": {"passes": True, "basis": "x"}}
+    f = {"resale": {"shelf_registrations": [{"date": "2026-05-28", "form": "F-3ASR"}]}}
+    s = score.final(_draft(), {"hard_caps": [], "check_caps": []}, m, {"heldPercentInsiders": 0.196}, CFG, f)
+    assert s["profile_8"]["insider_skin"] is False and s["score"] == 7  # ITRN scored 9.5 without this
+    s2 = score.final(_draft(), {"hard_caps": [], "check_caps": []}, m, {"heldPercentInsiders": 0.196}, CFG, {})
+    assert s2["profile_8"]["insider_skin"] is True

@@ -31,7 +31,7 @@ if [ -f data/NIGHT_RUN_DONE ] && [ "$(cat data/NIGHT_RUN_DONE)" = "$RUN_DATE" ];
 fi
 if pgrep -f "mahgic run" >/dev/null; then echo "A MA(h)GIC run is already in progress"; exit 1; fi
 
-caffeinate -dims -w $$ &          # no sleep while this script runs (the lid must stay open)
+caffeinate -ims -w $$ &           # Mac stays awake while this runs; the display may sleep (lid must stay open)
 exec > >(tee -a "$LOG") 2>&1
 echo "$(date '+%F %T') night run, run date $RUN_DATE, stop at $STOP_AT"
 $PY -m mahgic check || { echo "check failed: is the Ollama app running?"; exit 1; }

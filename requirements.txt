@@ -7,4 +7,5 @@ lxml==6.1.3
 PyYAML==6.0.3
 tabulate>=0.9
 pypdf>=5.0     # ASX announcement PDFs (guidance history)
+cryptography>=42  # many ASX PDFs are AES-encrypted (no password); pypdf needs this to open them
 pytest>=8

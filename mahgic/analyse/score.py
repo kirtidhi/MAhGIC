@@ -12,7 +12,7 @@ def max_points(cfg: dict) -> dict:
     return {**w["three_q"], **{k: w[k] for k in ("financials", "macro", "strategic_intent", "leadership", "regulatory")}}
 
 
-def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict) -> dict:
+def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict, filings: dict | None = None) -> dict:
     mp = max_points(cfg)
     sections = draft.get("sections", {})
     points, problems = {}, []
@@ -44,13 +44,17 @@ def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict) -> 
         valuation = bool(fpe and 0 < fpe <= h["max_mid_cycle_pe"]) or bool(model_profile.get("valuation"))
     ins = info.get("heldPercentInsiders")
     parent_suspect = ins is not None and ins * 100 >= h.get("parent_suspect_pct", 50)
+    # A registered resale shelf (S-3/F-3) in the window counts as insiders selling until it is
+    # withdrawn or 12 months pass (ITRN Oct 2026: founders' 19.5% registered for resale; the
+    # local run scored it 9.5 against Claude's 6.5). Proposed B5 rule from the Claude run.
+    resale = bool(((filings or {}).get("resale") or {}).get("shelf_registrations"))
     profile = {
         "moat": bool(model_profile.get("moat")),
         "valuation": valuation,
         "curable_negative": bool(model_profile.get("curable_negative")),
         "net_cash_and_cash_real": bool(metrics.get("net_cash") and metrics.get("cash_is_real")),
         "insider_skin": bool(ins is not None and ins * 100 >= h["min_insider_pct"] and not parent_suspect
-                             and not model_profile.get("insider_is_parent_or_pe")),
+                             and not resale and not model_profile.get("insider_is_parent_or_pe")),
     }
     if not all(profile.values()):
         caps.append((7, "hypothetical-8 profile incomplete: " + ", ".join(k for k, v in profile.items() if not v)))

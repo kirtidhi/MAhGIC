@@ -321,7 +321,7 @@ class Pipeline:
             if not (d and a):
                 continue
             info, row = self.store.load(t, "info") or {}, self.screen_row(t)
-            s = score_mod.final(d, a["redflags"], a["metrics"], info, self.cfg)
+            s = score_mod.final(d, a["redflags"], a["metrics"], info, self.cfg, self.store.load(t, "filings"))
             rows.append({"ticker": t, "name": row.get("name"), "track": row.get("track") or d.get("track"),
                          "score": s["score"], "raw": s["raw"], "cap": s.get("binding_cap"),
                          "phase0": row.get("score"), "low_conf": s["low_confidence"], "one_line": d.get("one_line"),
@@ -362,7 +362,8 @@ class Pipeline:
                         secs[k]["points"] = v
                 d2 = {**d, "sections": secs,
                       "caps_confirmed": rev.get("caps_confirmed") or d.get("caps_confirmed", [])}
-                r["_s"] = score_mod.final(d2, a["redflags"], a["metrics"], self.store.load(t, "info") or {}, self.cfg)
+                r["_s"] = score_mod.final(d2, a["redflags"], a["metrics"], self.store.load(t, "info") or {}, self.cfg,
+                                         self.store.load(t, "filings"))
                 r.update(score=r["_s"]["score"], raw=r["_s"]["raw"], cap=r["_s"].get("binding_cap"), reviewed=True)
             md = thesis_mod.render(t, self.screen_row(t), a["metrics"], a["redflags"], d, r["_s"], rev, meta)
             self.store.save_text(t, f"thesis_{t}", md)
