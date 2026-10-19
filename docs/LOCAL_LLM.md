@@ -5,42 +5,55 @@
 Kirti's 14" MacBook Pro: base M5, 16 GB unified memory (about 12 GB usable for a model).
 This follows the plan in the "Setting up a local LLM" project (25 Sep 2026):
 
-| | Choice |
+| | Choice (measured Oct 2026) |
 |---|---|
-| Runtime | Ollama 0.17.1+ on localhost only, cloud features off (MLX-LM server is the alternative) |
-| Model | Qwen 3.5 9B (~7 GB), Gemma 4 E4B (~3 GB) as fallback. Confirm tags on ollama.com/library |
-| Context | 16k (`OLLAMA_CONTEXT_LENGTH=16384`); Ollama defaults to 4k under 24 GB and cuts prompts silently |
-| Not on this Mac | 12–14B models are slow; Gemma 4 26B/31B do not fit |
+| Runtime | Ollama 0.17.1+ on localhost only, cloud features off |
+| Drafts (`draft_thesis`) | Qwen 3.5 9B `qwen3.5:9b-q4_K_M` at **24k** context, thinking on: ~5–6 min a company, valid JSON first try in 22 of 24 drafts. At 16k its thinking filled the window and no answer came back |
+| Reading (`extract_filing`, `extract_guidance`) | Gemma 4 E4B `gemma4:e4b-it-q4_K_M` at 16k: ~25 s a chunk, ~10x faster than Qwen for similar extraction quality |
+| Rejected | Gemma 4 12B QAT (thinks longer than Qwen, overflowed 24k, ~17 min a failed draft); 26B/31B do not fit |
 
-Prompts are budgeted for 16k: rules about 5.5k tokens, facts about 2–3k, 10-K extracts read in
-~3k-token chunks, leaving room for the answer.
+Each task names its provider in `config/models.yaml`; `ollama` and `ollama_fast` are two entries
+on the same Ollama server. The draft stage reads every company first (Gemma), then drafts every
+company (Qwen), so each model loads once; the code unloads one model before loading the other and
+waits `model_switch_pause_s` (free memory dipped to 4% once when both were loaded).
+
+**Context overflow.** If thinking + answer outgrow `num_ctx`, the call is logged and retried once
+with an instruction to keep the reasoning short, then once at `overflow.retry_num_ctx` (32k).
+2 of 13 drafts overflowed at 24k in the Oct 2026 test (MNTN, LOV). With `max_paid_calls_per_run: 0`
+nothing is ever sent to a paid model.
 
 Running MA(h)GIC itself needs no sandbox (fixed prompts, public data). The Docker sandbox in the
 project plan is for a coding agent that edits the repo.
 
-With more memory (a Mac mini, say), raise `num_ctx` to 32768 and try a 14B+ model.
+## What the code decides vs what the model decides
 
-## What runs where
+The Oct 2026 Claude-vs-local test (13 companies) found the local drafts scored ~1 point high,
+mostly because negative facts never reached the model. So more is now fetched and decided in code:
 
-| Task (`config/models.yaml → tasks`) | Default | Why |
+| Fact | Source (T1) | Decided by |
 |---|---|---|
-| `extract_filing` | Ollama | Pull facts from 10-K chunks; many calls, low stakes |
-| `summarise_jobs` | Ollama | Reserved; jobs are summarised in Python today |
-| `draft_thesis` | Ollama | Section scores + narrative as JSON |
-| `review_thesis` | Anthropic | Top 3 per track per market only |
-
-Paid calls stop at `max_paid_calls_per_run` (default 12). Set it to `0` for a fully local run.
-A draft that fails JSON validation twice locally escalates to the review provider
-(`escalate.on_invalid_json`), which also counts against the ceiling.
+| Guidance cuts / withdrawals / misses | 8-K 2.02 press releases (US), 6-K results (20-F filers), price-sensitive results / guidance / AGM announcements (ASX PDFs) | Gemma lists statements with exact quotes; quotes not found in the document are dropped; Python counts dated negative events; 2+ = cap 5 |
+| Insider buying / selling | SEC Form 4 (open-market P/S), Form 144; ASX Appendix 3Y headlines | notes for the model |
+| Founder stake registered for resale | S-3 / F-3 / S-1 / F-1 filings | note (insider skin unreliable) |
+| Investigations, class actions | phrases in the 10-K and latest 10-Q | note with the quote |
+| Latest quarter | 10-Q MD&A, legal proceedings, risk-factor updates (read before the 10-K) | extracts |
+| Price test (A6 part 2) | SBC-heavy: FCF yield **after SBC** vs local 10y; cyclicals: price / median 5-year EPS; others: forward P/E <= 15 or FCF yield > 10y | code (the model can no longer overrule it) |
+| Founder skin | Yahoo insiders >= 50% is treated as a parent or strategic holder (REA: News Corp) | code |
+| Banks / insurers | industrial cash-flow tests (OCF/NI, receivable days, ROIC) skipped | code |
+| Track | screen (size) | code |
+| CHECK items | the model may confirm one only with a quote found in the facts | code |
 
 ## Overnight run
 
 ```bash
-OLLAMA_CONTEXT_LENGTH=16384 ollama serve &   # or set it in the Ollama app
-caffeinate -dims &   # keep the Mac awake
-python -m mahgic run --market asx --universe asx200 2>&1 | tee -a asx.log
-python -m mahgic run --market us --universe us_top100 2>&1 | tee -a us.log
+scripts/night_run.sh            # each night (or install scripts/com.mahgic.nightrun.plist for 23:00)
+scripts/night_run.sh --status   # progress
+scripts/night_run.sh --new      # start the next deep run (every ~6 months)
 ```
 
-If it stops (sleep, network, rate limit), run the same command again; finished work is skipped.
-Use `--date YYYY-MM-DD` to resume a run started on an earlier day.
+The script keeps the Mac awake while it runs (lid open, plugged in), stops cleanly at 07:00
+(`STOP_AT`), and reuses one run date until ASX 200 and US top 100 are both complete. Finished
+work is never redone. Expect ~5–6 nights for the first full run on a 16 GB M5.
+
+One market by hand: `python -m mahgic run --market asx --universe asx200 --date 2026-10-20 --until 07:00`
+(exit code 3 = stopped at `--until`; run it again with the same `--date`).

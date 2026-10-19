@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Starts scripts/night_run.sh at 23:00 every night (macOS launchd, your user only).
+     Install:  sed "s#REPO#$HOME/Documents/MAhGIC#g" scripts/com.mahgic.nightrun.plist > ~/Library/LaunchAgents/com.mahgic.nightrun.plist
+               launchctl load ~/Library/LaunchAgents/com.mahgic.nightrun.plist
+     Remove:   launchctl unload ~/Library/LaunchAgents/com.mahgic.nightrun.plist
+     launchd does not wake a sleeping Mac: keep it plugged in with the lid open. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.mahgic.nightrun</string>
+  <key>ProgramArguments</key><array><string>/bin/bash</string><string>REPO/scripts/night_run.sh</string></array>
+  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>0</integer></dict>
+  <key>EnvironmentVariables</key><dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/Ollama.app/Contents/Resources</string></dict>
+  <key>StandardOutPath</key><string>REPO/data/launchd.log</string>
+  <key>StandardErrorPath</key><string>REPO/data/launchd.log</string>
+</dict>
+</plist>

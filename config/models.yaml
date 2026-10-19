@@ -6,22 +6,28 @@
 # track, or when the local model fails validation twice.
 
 providers:
+  # Two local models with different jobs (measured on the 16 GB M5, Oct 2026):
+  # - ollama:      Qwen 3.5 9B @24k writes the drafts. At 16k its thinking filled the
+  #                context and no answer came back; at 24k drafts are valid (~5-6 min each).
+  # - ollama_fast: Gemma 4 E4B @16k reads filing chunks and results releases
+  #                (~25 s per chunk, ~10x faster than Qwen at similar quality for extraction).
+  # Any provider with `impl: ollama` talks to the same Ollama server.
   ollama:
+    impl: ollama
     base_url: http://localhost:11434
-    # Kirti's Mac: 14" MacBook Pro, M5, 16 GB (~12 GB usable for models).
-    # Primary: Qwen 3.5 9B (~7 GB). Fallback: Gemma 4 E4B (~3 GB).
-    # Confirm the exact tags on ollama.com/library before pulling.
-    model: qwen3.5:9b
-    fallback_model: gemma4:e4b
-    # 16k fits a 9B model in 16 GB. Prompts are budgeted to stay under it
-    # (rules ~6k tokens + facts <=7k + answer ~2k).
+    model: qwen3.5:9b-q4_K_M
+    num_ctx: 24576
+    temperature: 0.2
+    timeout_s: 2400
+    # Thinking on: time is not a constraint, judgement quality is.
+    think: true
+  ollama_fast:
+    impl: ollama
+    base_url: http://localhost:11434
+    model: gemma4:e4b-it-q4_K_M
     num_ctx: 16384
     temperature: 0.2
-    timeout_s: 1800
-    # Thinking on: time is not a constraint, judgement quality is. Thinking tokens share
-    # num_ctx with the prompt and answer; if a call stops with "hit num_ctx", raise
-    # num_ctx (e.g. 24576) if memory allows. Each draft records thinking/prompt/output
-    # token counts in its _meta so the first test shows the real budget.
+    timeout_s: 900
     think: true
   mlx:
     # Alternative local server: `mlx_lm.server --model <hf-model>` (OpenAI-compatible).
@@ -42,16 +48,29 @@ providers:
     api_key_env: OPENAI_API_KEY
 
 tasks:
-  extract_filing: ollama     # map step: pull facts out of 10-K / annual report chunks
-  summarise_jobs: ollama     # B2: classify postings into strategic themes
-  draft_thesis: ollama       # B6 section scores + narrative, as JSON
+  extract_filing: ollama_fast    # map step: pull facts out of 10-K / 10-Q / 20-F chunks
+  extract_guidance: ollama_fast  # guidance history from results releases / ASX announcements
+  summarise_jobs: ollama_fast    # B2: classify postings into strategic themes
+  draft_thesis: ollama           # B6 section scores + narrative, as JSON
   review_thesis: anthropic   # second read of the top names only
 
 escalate:
   # Send to the review provider when the local draft fails JSON validation twice.
-  on_invalid_json: true
+  # Off: the run stays fully local; failures are logged and saved as draft_error.
+  on_invalid_json: false
   # Review only the best N per track per market (Claude cost control).
   review_top_n_per_track: 3
 
-# Hard ceiling on paid calls per run. 0 disables paid providers entirely.
-max_paid_calls_per_run: 12
+# When a local call runs out of context (thinking + answer > num_ctx):
+# 1) retry once with an instruction to keep the reasoning short,
+# 2) then once more with a bigger context (Qwen 9B: ~+0.3 GB per extra 8k tokens).
+overflow:
+  concise_retry: true
+  retry_num_ctx: 32768
+
+# Seconds to wait after unloading one local model before the next one loads
+# (free memory dipped to 4% once when Gemma and Qwen overlapped on 16 GB).
+model_switch_pause_s: 5
+
+# Hard ceiling on paid calls per run. 0 disables paid providers entirely (fully local).
+max_paid_calls_per_run: 0

@@ -30,18 +30,27 @@ def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict) -> 
         if c["item"] in confirmed:
             caps.append((c["cap"], c["why"]))
 
-    # Hypothetical-8 profile (A6): all five or cap 7
+    # Hypothetical-8 profile (A6): all five or cap 7. Code decides the parts it has data for;
+    # the model's view counts only for moat and curable negative, and for valuation when no
+    # valuation data exists (MNDY Oct 2026: the model called 13.5x non-GAAP P/E "valuation
+    # met" while FCF after SBC yielded ~3.5% against a 5.28% bond).
     h = cfg["hypothetical_8"]
-    fpe = metrics.get("forward_pe")
-    fcf_y, ey = metrics.get("fcf_yield"), metrics.get("earnings_yield")
+    model_profile = draft.get("profile") or {}
+    vt = metrics.get("valuation_test") or {}
+    if vt.get("passes") is not None:
+        valuation = bool(vt["passes"])
+    else:
+        fpe = metrics.get("forward_pe")
+        valuation = bool(fpe and 0 < fpe <= h["max_mid_cycle_pe"]) or bool(model_profile.get("valuation"))
     ins = info.get("heldPercentInsiders")
+    parent_suspect = ins is not None and ins * 100 >= h.get("parent_suspect_pct", 50)
     profile = {
-        "moat": bool((draft.get("profile") or {}).get("moat")),
-        "valuation": bool(fpe and 0 < fpe <= h["max_mid_cycle_pe"]) or bool((draft.get("profile") or {}).get("valuation")),
-        "curable_negative": bool((draft.get("profile") or {}).get("curable_negative")),
+        "moat": bool(model_profile.get("moat")),
+        "valuation": valuation,
+        "curable_negative": bool(model_profile.get("curable_negative")),
         "net_cash_and_cash_real": bool(metrics.get("net_cash") and metrics.get("cash_is_real")),
-        "insider_skin": bool(ins is not None and ins * 100 >= h["min_insider_pct"]
-                             and not (draft.get("profile") or {}).get("insider_is_parent_or_pe")),
+        "insider_skin": bool(ins is not None and ins * 100 >= h["min_insider_pct"] and not parent_suspect
+                             and not model_profile.get("insider_is_parent_or_pe")),
     }
     if not all(profile.values()):
         caps.append((7, "hypothetical-8 profile incomplete: " + ", ".join(k for k, v in profile.items() if not v)))
@@ -55,4 +64,5 @@ def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict) -> 
             "binding_cap": cap if cap < raw else None, "profile_8": profile,
             "confidence_by_section": dict(zip(SECTIONS, conf)),
             "low_confidence": low >= 2, "problems": problems,
-            "_ey_fcf": {"earnings_yield": ey, "fcf_yield": fcf_y}}
+            "valuation_basis": vt.get("basis"),
+            "_ey_fcf": {"earnings_yield": metrics.get("earnings_yield"), "fcf_yield": metrics.get("fcf_yield")}}

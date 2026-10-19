@@ -47,7 +47,42 @@ def margins(num: list, den: list) -> list:
     return [_div(a, b) for a, b in zip(num or [], den or [])]
 
 
-def compute(info: dict, fund: dict, cfg: dict) -> dict:
+def _median(xs):
+    v = sorted(x for x in (xs or []) if x is not None)
+    if not v:
+        return None
+    n = len(v)
+    return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
+
+
+def valuation_test(m: dict, cfg: dict) -> dict:
+    """A6 part 2 (price), decided in code: <=15x mid-cycle earnings or FCF yield above the
+    local 10y. SBC-heavy companies are judged on FCF after SBC (MNDY Oct 2026: 8.1% pre-SBC,
+    ~3.5% after), cyclicals on mid-cycle (median 5-year) EPS (VLO at peak refining margins)."""
+    h = cfg["hypothetical_8"]
+    bond = m.get("bond_10y")
+    if m.get("is_cyclical") and m.get("mid_cycle_pe") is not None:
+        ok = 0 < m["mid_cycle_pe"] <= h["max_mid_cycle_pe"]
+        return {"passes": ok, "basis": f"cyclical: price / median 5y EPS = {m['mid_cycle_pe']:.1f}x"
+                + (" (latest EPS at peak)" if m.get("eps_at_peak") else "")}
+    if m.get("sbc_material"):
+        y = m.get("fcf_yield_after_sbc")
+        if y is None or bond is None:
+            return {"passes": None, "basis": "SBC material but FCF after SBC or 10y unavailable"}
+        return {"passes": y * 100 > bond, "basis": f"SBC {m['sbc_to_revenue']:.0%} of revenue: FCF yield after SBC "
+                f"{y:.1%} vs 10y {bond}%"}
+    fpe, y = m.get("forward_pe"), m.get("fcf_yield")
+    checks = []
+    if fpe is not None:
+        checks.append((0 < fpe <= h["max_mid_cycle_pe"], f"forward P/E {fpe:.1f}x"))
+    if y is not None and bond is not None:
+        checks.append((y * 100 > bond, f"FCF yield {y:.1%} vs 10y {bond}%"))
+    if not checks:
+        return {"passes": None, "basis": "no valuation data"}
+    return {"passes": any(c for c, _ in checks), "basis": "; ".join(b for _, b in checks)}
+
+
+def compute(info: dict, fund: dict, cfg: dict, bond_10y: float | None = None) -> dict:
     a = (fund or {}).get("annual", {})
     q = (fund or {}).get("quarterly", {})
     g = info.get
@@ -78,6 +113,14 @@ def compute(info: dict, fund: dict, cfg: dict) -> dict:
         fcf_yoy = (fcf[0] - fcf[1]) / abs(fcf[1])
 
     mcap = g("marketCap")
+    same_ccy = (fund or {}).get("currency") == (fund or {}).get("quote_currency")
+    sbc0 = _first(a.get("sbc"))
+    sbc_ratio = _div(sbc0, rev0)
+    fcf_after_sbc = None if fcf0 is None else fcf0 - (sbc0 or 0)
+    price = g("currentPrice") or g("regularMarketPrice")
+    eps = a.get("eps_diluted")
+    eps0, eps_med = _first(eps), _median(eps)
+    is_cyc = (g("sector") or "") in cfg["phase0"]["cyclical_sectors"]
     out = {
         "currency": (fund or {}).get("currency"),
         "revenue_latest": rev0,
@@ -104,9 +147,18 @@ def compute(info: dict, fund: dict, cfg: dict) -> dict:
         "share_change_pct_1y": dilution,
         "cwip_latest": _first(a.get("cwip")),
         "cwip_trend": trend(a.get("cwip")),
-        "sbc_to_revenue": _div(_first(a.get("sbc")), rev0),
+        "sbc_to_revenue": sbc_ratio,
+        "sbc_material": None if sbc_ratio is None else sbc_ratio > cfg["flags"].get("sbc_material_pct", 0.05),
         # statement FCF over market cap, only when both are in the same currency
-        "fcf_yield": _div(fcf0, mcap) if (fund or {}).get("currency") == (fund or {}).get("quote_currency") else None,
+        "fcf_yield": _div(fcf0, mcap) if same_ccy else None,
+        "fcf_after_sbc": fcf_after_sbc,
+        "fcf_yield_after_sbc": _div(fcf_after_sbc, mcap) if same_ccy and sbc0 is not None else None,
+        "bond_10y": bond_10y,
+        "is_cyclical": is_cyc,
+        "eps_latest": eps0,
+        "eps_median_5y": eps_med,
+        "eps_at_peak": None if not (eps0 and eps_med and eps_med > 0) else eps0 >= cfg["flags"].get("peak_eps_ratio", 1.5) * eps_med,
+        "mid_cycle_pe": _div(price, eps_med) if same_ccy and price and eps_med and eps_med > 0 else None,
         "earnings_yield": _div(1, g("forwardPE")) if g("forwardPE") and g("forwardPE") > 0 else None,
         "forward_pe": g("forwardPE"),
         "trailing_pe": g("trailingPE"),
@@ -115,6 +167,7 @@ def compute(info: dict, fund: dict, cfg: dict) -> dict:
         "analyst_count": g("numberOfAnalystOpinions"),
         "data_gaps": [],
     }
+    out["valuation_test"] = valuation_test(out, cfg)
     for k in ("revenue_latest", "ocf_to_ni", "receivable_days", "roic", "share_change_pct_1y", "net_debt_to_ebitda"):
         if out[k] is None:
             out["data_gaps"].append(k)

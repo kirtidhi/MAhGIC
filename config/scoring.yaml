@@ -34,9 +34,16 @@ caps:             # lowest triggered cap wins
 hypothetical_8:   # all five needed for 8+, otherwise cap 7
   max_mid_cycle_pe: 15
   min_insider_pct: 10
+  # Yahoo's "insiders" includes parent companies and strategic holders (REA: News Corp ~61%).
+  # Above this, the stake does not count as founder skin until B5 verifies who holds it.
+  parent_suspect_pct: 50
   required: [moat, valuation, curable_negative, net_cash_and_cash_real, insider_skin]
 
 flags:
+  # SBC above this share of revenue: valuation uses FCF after SBC (US software, Oct 2026 run)
+  sbc_material_pct: 0.05
+  # Cyclicals (phase0.cyclical_sectors): latest EPS this many times the 5-year median = peak earnings
+  peak_eps_ratio: 1.5
   receivable_days_max: 120
   roic_min: 0.10
   dilution_flag_pct: 3.0

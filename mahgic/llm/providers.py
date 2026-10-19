@@ -20,7 +20,8 @@ _paid_calls = [0]
 _lock = threading.Lock()
 
 
-LOCAL = {"ollama", "mlx"}
+LOCAL_IMPLS = {"ollama", "mlx"}
+_current_model: dict = {}  # base_url -> model last used on that Ollama server
 
 
 class BudgetExceeded(RuntimeError):
@@ -31,7 +32,23 @@ class ContextOverflow(ValueError):
     """The model ran out of context (prompt + thinking + answer > num_ctx)."""
 
 
+def _switch_model(cfg: dict) -> None:
+    """Unload the other model before loading this one, so two never share 16 GB."""
+    url, model = cfg["base_url"], cfg["model"]
+    prev = _current_model.get(url)
+    if prev and prev != model:
+        try:
+            requests.post(f"{url}/api/generate", json={"model": prev, "keep_alive": 0}, timeout=60)
+        except requests.RequestException as e:
+            log.warning("could not unload %s: %s", prev, e)
+        pause = models().get("model_switch_pause_s", 5)
+        log.info("model switch %s -> %s (pause %ss)", prev, model, pause)
+        time.sleep(pause)
+    _current_model[url] = model
+
+
 def _ollama(system: str, user: str, cfg: dict, json_mode: bool) -> str:
+    _switch_model(cfg)
     body = {
         "model": cfg["model"],
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -117,19 +134,29 @@ def provider_for(task: str) -> str:
     return models()["tasks"].get(task, "ollama")
 
 
-def call(task: str, system: str, user: str, json_mode: bool = False, provider: str | None = None) -> tuple[str, dict]:
+def impl_of(name: str) -> str:
+    """Provider entries may share an implementation (`impl: ollama`); default is the name."""
+    return models()["providers"].get(name, {}).get("impl", name)
+
+
+def is_local(name: str) -> bool:
+    return impl_of(name) in LOCAL_IMPLS
+
+
+def call(task: str, system: str, user: str, json_mode: bool = False, provider: str | None = None,
+         overrides: dict | None = None) -> tuple[str, dict]:
     m = models()
     name = provider or provider_for(task)
-    cfg = m["providers"][name]
-    if name not in LOCAL:
+    cfg = {**m["providers"][name], **(overrides or {})}
+    if not is_local(name):
         with _lock:
             if _paid_calls[0] >= m.get("max_paid_calls_per_run", 0):
                 raise BudgetExceeded(f"Paid-call ceiling reached ({_paid_calls[0]}); {task} not sent to {name}")
             _paid_calls[0] += 1
     t0 = time.time()
     _last_stats.clear()
-    text = IMPL[name](system, user, cfg, json_mode)
-    return text, {"provider": name, "model": cfg["model"], "seconds": round(time.time() - t0, 1),
+    text = IMPL[impl_of(name)](system, user, cfg, json_mode)
+    return text, {"provider": name, "model": cfg["model"], "num_ctx": cfg.get("num_ctx"), "seconds": round(time.time() - t0, 1),
                   "chars_in": len(system) + len(user), "chars_out": len(text), **_last_stats}
 
 
@@ -140,34 +167,55 @@ def parse_json(text: str) -> dict:
     return json.loads(raw)
 
 
+CONCISE_HINT = ("\n\nIMPORTANT: your previous attempt ran out of space while reasoning. Keep your "
+                "reasoning short: decide each section once, do not re-check or loop, then write the JSON.")
+
+
 def call_json(task: str, system: str, user: str, validate=None) -> tuple[dict, dict]:
-    """Local first; on invalid JSON retry once locally, then escalate if configured."""
-    last_err = None
-    for attempt in range(2):
+    """Local first. Invalid JSON: retry once. Context overflow: retry with a short-reasoning
+    hint, then with a bigger num_ctx. Escalate to the paid reviewer only if configured and
+    paid calls are allowed."""
+    m = models()
+    ov = m.get("overflow") or {}
+    attempts = [("first", user, None)]
+    last_err, overflows = None, []
+    i = 0
+    while i < len(attempts):
+        label, u, over = attempts[i]
+        i += 1
         try:
-            text, meta = call(task, system, user if attempt == 0 else
-                              user + "\n\nYour last reply was not valid JSON for the schema. Reply with JSON only.",
-                              json_mode=True)
-        except ContextOverflow as e:  # a local retry would overflow again
+            text, meta = call(task, system, u, json_mode=True, overrides=over)
+        except ContextOverflow as e:
             last_err = e
-            break
+            overflows.append(f"{label}: {e}")
+            log.warning("%s: context overflow on %s attempt: %s", task, label, e)
+            if label == "first" and ov.get("concise_retry", True):
+                attempts.append(("concise", user + CONCISE_HINT, None))
+            elif label in ("first", "concise") and ov.get("retry_num_ctx"):
+                attempts.append(("bigger_ctx", user + CONCISE_HINT, {"num_ctx": ov["retry_num_ctx"]}))
+            continue
         try:
             data = parse_json(text)
             if validate:
                 validate(data)
-            meta["attempts"] = attempt + 1
+            meta.update(attempts=i, attempt=label, overflows=overflows)
             return data, meta
         except (ValueError, KeyError, TypeError) as e:
             last_err = e
-    if models()["escalate"].get("on_invalid_json") and provider_for(task) in LOCAL:
-        rev = models()["tasks"].get("review_thesis", "anthropic")
+            if label == "first":
+                attempts.append(("json_retry", user + "\n\nYour last reply was not valid JSON for the schema. "
+                                 "Reply with JSON only.", None))
+    can_pay = m.get("max_paid_calls_per_run", 0) > 0
+    if m["escalate"].get("on_invalid_json") and can_pay and is_local(provider_for(task)):
+        rev = m["tasks"].get("review_thesis", "anthropic")
         text, meta = call(task, system, user, json_mode=True, provider=rev)
         data = parse_json(text)
         if validate:
             validate(data)
         meta["escalated"] = True
         return data, meta
-    raise ValueError(f"{task}: no valid JSON after retries ({last_err})")
+    raise ValueError(f"{task}: no valid JSON after {i} attempts ({last_err})"
+                     + (f"; overflows: {overflows}" if overflows else ""))
 
 
 def paid_calls_used() -> int:

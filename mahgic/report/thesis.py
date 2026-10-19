@@ -51,11 +51,26 @@ def render(ticker: str, row: dict, metrics: dict, redflags: dict, draft: dict, s
           f"- Net debt {_fmt(metrics.get('net_debt'), money=True)}; ND/EBITDA {_fmt(metrics.get('net_debt_to_ebitda'))}; "
           f"ROIC {_fmt(metrics.get('roic'), pct=True)}; receivable days {_fmt(metrics.get('receivable_days'))}",
           f"- Share count change 1y {_fmt(metrics.get('share_change_pct_1y'))}%; insiders {_fmt(row.get('insider_pct'))}% (Yahoo; B5 check)",
+          f"- SBC {_fmt(metrics.get('sbc_to_revenue'), pct=True)} of revenue; FCF yield after SBC "
+          f"{_fmt(metrics.get('fcf_yield_after_sbc'), pct=True)} vs local 10y {_fmt(metrics.get('bond_10y'))}%",
+          f"- A6 price test (code): {_fmt((metrics.get('valuation_test') or {}).get('passes'))} — "
+          f"{(metrics.get('valuation_test') or {}).get('basis', 'n/a')}",
           ]
+    if metrics.get("is_cyclical"):
+        L.append(f"- Cyclical: latest EPS {_fmt(metrics.get('eps_latest'))} vs 5y median "
+                 f"{_fmt(metrics.get('eps_median_5y'))}; price / mid-cycle EPS {_fmt(metrics.get('mid_cycle_pe'))}x")
+    if draft.get("track_model"):
+        L.append(f"- Track set by size from the screen; the model had proposed {draft['track_model']}")
     if metrics.get("data_gaps"):
         L.append(f"- Data gaps: {', '.join(metrics['data_gaps'])}")
     if redflags.get("notes"):
         L += ["", "## Flags"] + [f"- {n}" for n in redflags["notes"]]
+    rejected = [c for c in draft.get("caps_confirmed", []) if "[discarded by code" in str(c.get("reason"))]
+    if rejected:
+        L += [f"- Check item '{c.get('item')}' claimed by the model but discarded: no supporting quote" for c in rejected]
+    meta = draft.get("_meta") or {}
+    if meta.get("overflows"):
+        L.append(f"- Draft needed a retry after a context overflow ({meta.get('attempt')})")
 
     for s, title in TITLES.items():
         sec = (draft.get("sections") or {}).get(s) or {}

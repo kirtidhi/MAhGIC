@@ -10,7 +10,9 @@ asx:
   yahoo_suffix: ".AX"
   currency: AUD
   filings: asx            # fetch/asx.py — announcements API, Appendix 4C/4D/4E
-  ten_year_yield_ticker: "^AXJO"   # placeholder: set the 10y source in base_layer A5
+  # Local 10-year government bond yield, % (base_layer.md A5, Oct 2026). Used for the
+  # A6 price test "FCF yield above the local 10y". Refresh with the base layer.
+  ten_year_yield: 5.22
   universes:
     asx200:
       csv: asx200.csv
@@ -21,6 +23,7 @@ us:
   yahoo_suffix: ""
   currency: USD
   filings: sec            # fetch/sec.py — XBRL companyfacts, submissions, 10-K text
+  ten_year_yield: 5.28
   universes:
     us_top100:
       csv: sp500.csv

@@ -46,11 +46,33 @@ Reply with JSON only:
 Use [] when the chunk says nothing on a field."""
 
 
+GUIDANCE_SYSTEM = """You read one company results release, trading update or AGM address and list every
+statement about the company's OWN guidance, outlook or targets. Do not count analyst or
+consensus expectations. Quote the document exactly; never invent numbers.
+For each statement give:
+- metric: e.g. "FY26 underlying profit before tax", "Q4 revenue", "2027 revenue target"
+- period: the period the guidance is for
+- guidance_text: the guidance as stated (range or number)
+- change: "new" | "reaffirmed" | "raised" | "lowered" | "withdrawn" | "none"
+  ("lowered" includes narrowing to a lower midpoint and "amended" guidance that is below the
+  previous range; "withdrawn" includes a target the company no longer expects to meet)
+- vs_prior_guidance: for a reported result, did it "beat" | "met" | "missed" the company's own
+  earlier guidance? Use "n/a" if the document does not say.
+- quote: the exact sentence (at least 8 words) the statement comes from
+Also list leadership changes, legal or regulatory matters and restructurings the document mentions.
+Reply with JSON only:
+{"document_date": str, "statements": [{"metric": str, "period": str, "guidance_text": str,
+ "change": str, "vs_prior_guidance": str, "quote": str}], "other_events": [str]}
+Use [] when there is no guidance."""
+
+
 DRAFT_SYSTEM_HEAD = """You are the MA(h)GIC analyst. Apply the rules below exactly. Python has already
 computed every number and red flag in the FACTS; do not recompute or contradict them.
 Where data is missing say so and lower confidence; never fill a gap with a guess.
 Score each section within its maximum (B6). Caps are applied by code afterwards, but you
-must confirm or reject each CHECK item with a reason or quote from the facts.
+must confirm or reject each CHECK item. To confirm one you must copy the exact text from the
+FACTS that proves it into "quote"; a confirmation without a matching quote is discarded.
+Do not infer a guidance cut from the track name or from a fallen share price.
 
 RULES
 =====
@@ -63,7 +85,8 @@ DRAFT_SCHEMA = {
                      "evidence": ["str, cite the fact"], "gaps": ["str"]}
                  for s in ("business", "management", "balance_sheet", "financials", "macro",
                            "strategic_intent", "leadership", "regulatory")},
-    "caps_confirmed": [{"item": "id from CHECK list", "confirmed": "bool", "reason": "str"}],
+    "caps_confirmed": [{"item": "id from CHECK list", "confirmed": "bool", "reason": "str",
+                        "quote": "exact text from the FACTS that proves it (required to confirm)"}],
     "profile": {"moat": "bool", "valuation": "bool (<=15x mid-cycle or FCF yield > local 10y)",
                 "curable_negative": "bool", "insider_is_parent_or_pe": "bool"},
     "curable_negative": "str: what went wrong and the dated catalyst that fixes it, or 'structural'",
@@ -79,30 +102,42 @@ def draft_system(market: str) -> str:
 
 
 def facts_pack(row: dict, metrics: dict, redflags: dict, filings: dict | None, jobs: dict | None,
-               extracted: dict | None, max_points: dict) -> str:
-    # Budget: the whole facts pack must stay under ~7k tokens (~26k chars) so that
-    # rules + facts + answer fit a 16k context on a 16 GB Mac.
+               extracted: dict | None, max_points: dict, guidance: dict | None = None) -> str:
+    # Budget: rules (~6k tokens) + facts (<~8k) + thinking + answer must fit num_ctx
+    # (24k for Qwen 9B; drafts measured at 8-11k prompt tokens in Oct 2026).
     def j(x, limit=4000):
         return json.dumps(x, default=str, separators=(",", ":"))[:limit]
 
-    f = dict(filings or {})
-    f.pop("_10k_items", None)
-    f.pop("announcements", None)
+    f = {k: v for k, v in (filings or {}).items()
+         if not k.startswith("_") and k not in ("announcements", "insider_trades", "resale", "xbrl_annual")}
+    if f.get("flags") and isinstance(f["flags"], dict):
+        f["flags"] = {k: (v[:8] if isinstance(v, list) else v) for k, v in f["flags"].items()}
     jobs_view = None
     if jobs:
         jobs_view = {k: jobs.get(k) for k in ("status", "ats", "note", "error")}
         jobs_view["summary"] = jobs.get("summary")
         jobs_view["previous_snapshot"] = jobs.get("previous_summary")
-    return "\n\n".join([
+    parts = [
         "SECTION MAXIMUMS: " + j(max_points),
-        "SCREEN (Phase 0, Yahoo T3): " + j(row),
+        "SCREEN (Phase 0, Yahoo T3; track is set by code): " + j(row),
         "METRICS (computed, annual unless noted): " + j(metrics, 6000),
         "RED FLAGS (hard caps already applied by code): " + j({k: redflags[k] for k in ("hard_caps", "notes")}),
-        "CHECK (confirm or reject each): " + j(redflags["check_caps"]),
-        "FILINGS (T1): " + j(f),
-        "HIRING (B2): " + j(jobs_view),
-        "ANNUAL REPORT EXTRACTS: " + j(extracted, 6000),
-    ])
+        "CHECK (confirm or reject each, quote required to confirm): " + j(redflags["check_caps"]),
+    ]
+    if guidance:
+        parts.append("GUIDANCE HISTORY (T1, read from results releases; counted by code): " + j({
+            k: guidance.get(k) for k in ("status", "docs_read", "count_negative", "negative_events",
+                                         "positive_events", "other_events")}, 3500))
+    it = (filings or {}).get("insider_trades")
+    if it and not it.get("error"):
+        parts.append("INSIDER TRADES (SEC Form 4, T1, open-market only): " + j(it, 1500))
+    rs = (filings or {}).get("resale")
+    if rs and (rs.get("shelf_registrations") or rs.get("form_144_count")):
+        parts.append("REGISTERED SHELVES / PLANNED INSIDER SALES (T1): " + j(rs, 600))
+    parts += ["FILINGS (T1): " + j(f),
+              "HIRING (B2): " + j(jobs_view),
+              "ANNUAL / QUARTERLY REPORT EXTRACTS: " + j(extracted, 6000)]
+    return "\n\n".join(parts)
 
 
 REVIEW_SYSTEM = """You review a draft stock thesis written by a smaller local model under the MA(h)GIC rules.

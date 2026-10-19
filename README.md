@@ -45,8 +45,8 @@ set -a; source .env; set +a
 
 # Local model — see docs/LOCAL_LLM.md for which model fits your Mac
 brew install ollama             # or download the app from ollama.com
-OLLAMA_CONTEXT_LENGTH=16384 ollama serve &   # the desktop app also works; set context to 16k
-ollama pull qwen3.5:9b          # 16 GB Mac; confirm the tag on ollama.com/library
+ollama pull qwen3.5:9b-q4_K_M   # drafts, run at 24k context (set per call by MA(h)GIC)
+ollama pull gemma4:e4b-it-q4_K_M  # reads filings and results releases, 16k
 
 python -m mahgic check          # confirms Ollama, the model, and keys
 pytest -q                       # offline tests, no network
