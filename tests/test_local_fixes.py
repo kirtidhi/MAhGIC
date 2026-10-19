@@ -218,3 +218,18 @@ def test_resale_shelf_means_no_insider_skin():
     assert s["profile_8"]["insider_skin"] is False and s["score"] == 7  # ITRN scored 9.5 without this
     s2 = score.final(_draft(), {"hard_caps": [], "check_caps": []}, m, {"heldPercentInsiders": 0.196}, CFG, {})
     assert s2["profile_8"]["insider_skin"] is True
+
+
+def test_asx_guidance_change_announcements_are_read_first(monkeypatch):
+    anns = [{"date": d, "headline": h, "price_sensitive": True, "key": k} for d, h, k in [
+        ("2026-08-25", "FY26 Full Year Results Announcement", "a"),
+        ("2026-06-16", "FLT Amends FY26 Profit Guidance and Announces Buy-Back", "b"),
+        ("2026-02-24", "FY26 Half Year Results Release (inc guidance commentary)", "c"),
+        ("2025-11-11", "Chair & MD's AGM Speeches (inc trading update & guidance)", "d"),
+        ("2025-08-20", "FY25 Results Release", "e"),
+        ("2025-05-02", "Amendment to FY25 Guidance and up to $200m Buyback", "f")]]
+    read = []
+    monkeypatch.setattr(asx, "download", lambda key: read.append(key) or b"x")
+    monkeypatch.setattr(guidance, "pdf_text", lambda data: "guidance " * 200)
+    docs = guidance.asx_docs(anns, max_docs=3)
+    assert [d["key"] for d in docs] == ["b", "f", "a"]

@@ -151,10 +151,17 @@ def us_docs(cik: int, filings: list[dict], since: str, foreign: bool, max_docs: 
 def asx_docs(announcements: list[dict], max_docs: int = 5) -> list[dict]:
     from . import asx
 
+    from .asx import PATTERNS as _P
+    _chg = re.compile(_P["guidance_change"], re.I)
     cands = [a for a in announcements if a.get("price_sensitive") and ASX_DOC.search(a.get("headline") or "")
-             and not ASX_SKIP.search(a.get("headline") or "")]
-    # newest first; on a results day keep the release over the accounts or the 4D/4E
-    cands.sort(key=lambda a: (a["date"], bool(ASX_PREFER.search(a["headline"] or ""))), reverse=True)
+             and (not ASX_SKIP.search(a.get("headline") or "") or _chg.search(a.get("headline") or ""))]
+    # Announcements whose headline says guidance changed are always read first (FLT Oct 2026:
+    # "Amendment to FY25 Guidance" was crowded out by newer results releases), then newest first;
+    # on a results day keep the release over the accounts or the 4D/4E.
+    from .asx import PATTERNS
+    change = re.compile(PATTERNS["guidance_change"], re.I)
+    cands.sort(key=lambda a: (bool(change.search(a["headline"] or "")), a["date"],
+                              bool(ASX_PREFER.search(a["headline"] or ""))), reverse=True)
     docs, days = [], set()
     for a in cands:
         if len(docs) >= max_docs:
