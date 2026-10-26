@@ -25,7 +25,19 @@ def evaluate(metrics: dict, filings: dict | None, cfg: dict, is_financial: bool 
 
     if is_financial:
         notes.append("Bank/insurer/financial: industrial cash-flow tests (OCF vs net income, receivable "
-                     "days, ROIC) not applied; judge on capital, credit quality and returns on equity (A7)")
+                     "days, ROIC) not applied; judge on capital, credit quality and returns on equity (A7). "
+                     "Balance-sheet and financials points must reflect ROE and price-to-book, not size or brand")
+        rp, bond = metrics.get("return_on_price"), metrics.get("bond_10y")
+        if rp is not None and bond is not None:
+            if rp * 100 < bond and caps.get("financial_return_below_bond"):
+                hard.append({"cap": caps["financial_return_below_bond"],
+                             "why": f"Bank/insurer return on price {rp:.1%} (ROE {metrics['roe']:.1%} / P/B "
+                                    f"{metrics['price_to_book']:.2f}) is below the 10y bond {bond}%"})
+            else:
+                notes.append(f"Bank/insurer return on price {rp:.1%} (ROE {metrics['roe']:.1%} / P/B "
+                             f"{metrics['price_to_book']:.2f}) vs 10y {bond}%")
+        else:
+            notes.append("Bank/insurer: ROE or price-to-book missing; confidence Low on financials")
     else:
         # OCF < NI and bloated receivables -> cap 4
         if metrics.get("ocf_to_ni") is not None and metrics["ocf_to_ni"] < 1:

@@ -7,11 +7,12 @@ import pandas as pd
 def build(rows: list[dict], run_meta: dict) -> str:
     if not rows:
         return "# No companies analysed\n"
-    df = pd.DataFrame(rows).sort_values(["track", "score"], ascending=[True, False])
+    df = pd.DataFrame(rows).sort_values(["track", "score", "raw"], ascending=[True, False, False])
     L = [f"# MA(h)GIC {run_meta['market'].upper()} / {run_meta['universe']} — {run_meta['date']}", "",
          f"Analysed {len(df)} companies. Drafts: {run_meta.get('draft_model')}. "
-         f"Reviews: {run_meta.get('review_model')} on the top {run_meta.get('review_top_n')} per track. "
-         f"Paid calls used: {run_meta.get('paid_calls', 0)}.", ""]
+         + (f"Reviews: {run_meta.get('review_model')} on the top {run_meta.get('review_top_n')} per track. "
+            if run_meta.get("paid_calls") else "Reviews: none (fully local run; paid calls off). ")
+         + f"Paid calls used: {run_meta.get('paid_calls', 0)}. Ties are ordered by raw score.", ""]
     for track, g in df.groupby("track"):
         L += [f"## {track.replace('_', ' ').title()}", "",
               "| # | Ticker | Name | Score | Raw | Cap | Phase 0 | Low conf. | Reviewed | One line |",

@@ -233,3 +233,25 @@ def test_asx_guidance_change_announcements_are_read_first(monkeypatch):
     monkeypatch.setattr(guidance, "pdf_text", lambda data: "guidance " * 200)
     docs = guidance.asx_docs(anns, max_docs=3)
     assert [d["key"] for d in docs] == ["b", "f", "a"]
+
+
+def test_bank_return_on_price_cap_and_price_test():
+    info = {"industry": "Banks - Diversified", "priceToBook": 3.335, "returnOnEquity": 0.1386, "marketCap": 3e11}
+    m = metrics.compute(info, {"currency": "AUD", "quote_currency": "AUD", "annual": {}, "quarterly": {}}, CFG, bond_10y=5.22)
+    assert m["is_financial"] and round(m["return_on_price"], 3) == 0.042
+    assert m["valuation_test"]["passes"] is False
+    rf = redflags.evaluate(m, None, CFG, is_financial=True)
+    assert rf["hard_cap"] == 5  # CBA Oct 2026: raw 10/10 from the model, ended 7 only via the 8+ cap
+    insurer = metrics.compute({**info, "industry": "Insurance - Property & Casualty", "priceToBook": 2.33,
+                               "returnOnEquity": 0.193}, {"annual": {}, "quarterly": {}}, CFG, bond_10y=5.22)
+    assert insurer["valuation_test"]["passes"] is True
+    assert redflags.evaluate(insurer, None, CFG, is_financial=True)["hard_cap"] is None
+
+
+def test_summary_orders_ties_by_raw_and_states_no_review():
+    from mahgic.report import summary
+    rows = [{"ticker": t, "name": t, "track": "fallen_quality", "score": 7.0, "raw": r, "cap": 7, "phase0": 5,
+             "low_conf": False, "one_line": "", "reviewed": False} for t, r in (("A", 7.2), ("B", 8.6), ("C", 7.8))]
+    out = summary.build(rows, {"market": "asx", "universe": "x", "date": "d", "draft_model": "q", "paid_calls": 0})
+    assert out.index("| B |") < out.index("| C |") < out.index("| A |")
+    assert "Reviews: none" in out

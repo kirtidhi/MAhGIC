@@ -10,6 +10,8 @@ phase0:
   deep_drawdown_checklist: 0.70
   financial_industries: [bank, insurance, capital markets, asset management, mortgage, credit services]
   cyclical_sectors: [Energy, Basic Materials]
+  # Industries outside those sectors that are just as cyclical (VGN Oct 2026: an airline at ~4.5x peak earnings)
+  cyclical_industries: [airlines, auto manufacturers, residential construction, marine shipping, travel services]
 
 weights:          # sum to 10
   three_q:
@@ -30,6 +32,9 @@ caps:             # lowest triggered cap wins
   ocf_below_ni_and_receivables_over_120: 4
   guidance_misses_2plus: 5
   dilution_over_5pct: 5
+  # Banks/insurers: return on price (ROE / price-to-book) below the local 10y bond (Oct 2026:
+  # CBA ~4.2%, ANZ ~5.0% vs 5.22%). The model scored CBA and ANZ 10/10 raw without bank data.
+  financial_return_below_bond: 5
 
 hypothetical_8:   # all five needed for 8+, otherwise cap 7
   max_mid_cycle_pe: 15
@@ -44,6 +49,8 @@ flags:
   sbc_material_pct: 0.05
   # Cyclicals (phase0.cyclical_sectors): latest EPS this many times the 5-year median = peak earnings
   peak_eps_ratio: 1.5
+  # Banks/insurers pass the A6 price test when ROE / price-to-book beats the 10y by this many points
+  financial_equity_premium_pct: 2.0
   receivable_days_max: 120
   roic_min: 0.10
   dilution_flag_pct: 3.0

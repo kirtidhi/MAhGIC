@@ -61,6 +61,13 @@ def valuation_test(m: dict, cfg: dict) -> dict:
     ~3.5% after), cyclicals on mid-cycle (median 5-year) EPS (VLO at peak refining margins)."""
     h = cfg["hypothetical_8"]
     bond = m.get("bond_10y")
+    if m.get("is_financial"):
+        rp = m.get("return_on_price")
+        if rp is None or bond is None:
+            return {"passes": None, "basis": "bank/insurer: ROE or price-to-book unavailable"}
+        hurdle = bond + cfg["flags"].get("financial_equity_premium_pct", 2.0)
+        return {"passes": rp * 100 > hurdle, "basis": f"bank/insurer: ROE {m['roe']:.1%} / P/B {m['price_to_book']:.2f} "
+                f"= {rp:.1%} return on price vs hurdle {hurdle:.2f}% (10y + premium)"}
     if m.get("is_cyclical") and m.get("mid_cycle_pe") is not None:
         ok = 0 < m["mid_cycle_pe"] <= h["max_mid_cycle_pe"]
         return {"passes": ok, "basis": f"cyclical: price / median 5y EPS = {m['mid_cycle_pe']:.1f}x"
@@ -120,8 +127,17 @@ def compute(info: dict, fund: dict, cfg: dict, bond_10y: float | None = None) ->
     price = g("currentPrice") or g("regularMarketPrice")
     eps = a.get("eps_diluted")
     eps0, eps_med = _first(eps), _median(eps)
-    is_cyc = (g("sector") or "") in cfg["phase0"]["cyclical_sectors"]
+    industry = (g("industry") or "").lower()
+    is_cyc = ((g("sector") or "") in cfg["phase0"]["cyclical_sectors"]
+              or any(k in industry for k in cfg["phase0"].get("cyclical_industries", [])))
+    is_fin = any(k in industry for k in cfg["phase0"]["financial_industries"])
+    pb, roe = g("priceToBook"), g("returnOnEquity")
     out = {
+        # Banks and insurers are judged on capital returns, not industrial cash-flow tests
+        "is_financial": is_fin,
+        "roe": roe if is_fin else None,
+        "price_to_book": pb if is_fin else None,
+        "return_on_price": (roe / pb) if is_fin and roe is not None and pb and pb > 0 else None,
         "currency": (fund or {}).get("currency"),
         "revenue_latest": rev0,
         "revenue_cagr_5y": cagr(rev),

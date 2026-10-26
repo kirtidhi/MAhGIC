@@ -161,19 +161,24 @@ class Pipeline:
                                      guidance=self.store.load(t, "guidance"),
                                      info=self.store.load(t, "info") or {})
 
+    def _analysis(self, t: str) -> dict:
+        """Metrics + red flags from stored data (Python only, seconds). Also re-run just before
+        drafting, so code fixes reach companies analysed on an earlier night."""
+        info, fund = self.store.load(t, "info") or {}, self.store.load(t, "fundamentals") or {}
+        m = metrics_mod.compute(info, fund, self.cfg, bond_10y=self.ctx.market_cfg.get("ten_year_yield"))
+        filings, jobs = self.store.load(t, "filings"), self.store.load(t, "jobs")
+        if not filings or filings.get("error"):
+            m["data_gaps"].append("filings (T1) unavailable: B4/B5 Low confidence")
+        if not jobs or jobs.get("status") != "ok":
+            m["data_gaps"].append("no job-board feed: B2 Low confidence")
+        a = {"metrics": m, "redflags": self._redflags(t, m)}
+        self.store.save(t, "analysis", a)
+        return a
+
     def analyse(self):
-        bond = self.ctx.market_cfg.get("ten_year_yield")
         for t in self.selected():
-            if not self._need(t, "analysis"):
-                continue
-            info, fund = self.store.load(t, "info") or {}, self.store.load(t, "fundamentals") or {}
-            m = metrics_mod.compute(info, fund, self.cfg, bond_10y=bond)
-            filings, jobs = self.store.load(t, "filings"), self.store.load(t, "jobs")
-            if not filings or filings.get("error"):
-                m["data_gaps"].append("filings (T1) unavailable: B4/B5 Low confidence")
-            if not jobs or jobs.get("status") != "ok":
-                m["data_gaps"].append("no job-board feed: B2 Low confidence")
-            self.store.save(t, "analysis", {"metrics": m, "redflags": self._redflags(t, m)})
+            if self._need(t, "analysis"):
+                self._analysis(t)
 
     def _chunk_plan(self, t: str) -> tuple[list[tuple[str, str]], int]:
         """What to read, newest first: the latest 10-Q (MD&A, legal, risk updates), then the
@@ -290,9 +295,7 @@ class Pipeline:
         for i, t in enumerate(todo, 1):  # (b) drafting
             if self.time_up():
                 return
-            a = self.store.load(t, "analysis")
-            a["redflags"] = self._redflags(t, a["metrics"])  # now with the guidance history
-            self.store.save(t, "analysis", a)
+            a = self._analysis(t)  # fresh metrics and red flags, now with the guidance history
             row = self.screen_row(t)
             t0 = time.time()
             try:
@@ -317,9 +320,10 @@ class Pipeline:
         m = models()
         rows = []
         for t in self.selected():
-            d, a = self.store.load(t, "draft"), self.store.load(t, "analysis")
-            if not (d and a):
+            d = self.store.load(t, "draft")
+            if not (d and self.store.has(t, "analysis")):
                 continue
+            a = self._analysis(t)  # current rules (caps, price test) on the stored data
             info, row = self.store.load(t, "info") or {}, self.screen_row(t)
             s = score_mod.final(d, a["redflags"], a["metrics"], info, self.cfg, self.store.load(t, "filings"))
             rows.append({"ticker": t, "name": row.get("name"), "track": row.get("track") or d.get("track"),
