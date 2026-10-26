@@ -281,3 +281,24 @@ def test_json_retry_tells_the_model_what_was_wrong(monkeypatch):
     monkeypatch.setattr(providers, "call", fake_call)
     data, meta = providers.call_json("draft_thesis", "sys", "user", validate)
     assert meta["attempt"] == "json_retry" and "business 5 (max 1.0)" in sent[1]
+
+
+def test_tracks_follow_the_playbook_and_airlines_are_excluded(tmp_path, monkeypatch):
+    import pandas as pd
+    from mahgic import screen
+    from mahgic.config import RunContext
+    ctx = RunContext("asx", "asx200", "2026-10-22")
+    df = pd.DataFrame([
+        # ticker, market cap, analysts, drawdown
+        {"ticker": "LOV.AX", "currency": "AUD", "market_cap": 2.8e9, "analyst_count": 16, "drawdown_from_high": 0.35},
+        {"ticker": "FRW.AX", "currency": "AUD", "market_cap": 1.8e9, "analyst_count": 1, "drawdown_from_high": 0.21},
+        {"ticker": "WTC.AX", "currency": "AUD", "market_cap": 13.4e9, "analyst_count": 16, "drawdown_from_high": 0.54},
+        {"ticker": "CSL.AX", "currency": "AUD", "market_cap": 90e9, "analyst_count": 18, "drawdown_from_high": 0.10},
+    ] + [{"ticker": f"BIG{i}", "currency": "AUD", "market_cap": 20e9 + i, "analyst_count": 10,
+          "drawdown_from_high": 0.0} for i in range(100)])
+    out = screen.assign_tracks(df, ctx, CFG).set_index("ticker")["track"]
+    assert out["LOV.AX"] == "hidden_gem"      # <= A$5b and outside the top 100: was "fallen_quality"
+    assert out["FRW.AX"] == "hidden_gem"
+    assert out["WTC.AX"] == "fallen_quality"  # large and 54% down
+    assert out["CSL.AX"] == "large"           # large, only 10% down: no setup
+    assert "airlines" in CFG["exclude_industries"]

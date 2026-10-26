@@ -13,8 +13,12 @@ def build(rows: list[dict], run_meta: dict) -> str:
          + (f"Reviews: {run_meta.get('review_model')} on the top {run_meta.get('review_top_n')} per track. "
             if run_meta.get("paid_calls") else "Reviews: none (fully local run; paid calls off). ")
          + f"Paid calls used: {run_meta.get('paid_calls', 0)}. Ties are ordered by raw score.", ""]
-    for track, g in df.groupby("track"):
-        L += [f"## {track.replace('_', ' ').title()}", "",
+    order = {"hidden_gem": 0, "fallen_quality": 1, "large": 2}
+    titles = {"hidden_gem": "Hidden gems (passes 2+ less-known tests)",
+              "fallen_quality": "Fallen quality (large, 30%+ below its high)",
+              "large": "Large, not fallen (no setup: no 30% fall)"}
+    for track, g in sorted(df.groupby("track"), key=lambda kv: order.get(kv[0], 9)):
+        L += [f"## {titles.get(track, track.replace('_', ' ').title())}", "",
               "| # | Ticker | Name | Score | Raw | Cap | Phase 0 | Low conf. | Reviewed | One line |",
               "|---|---|---|---|---|---|---|---|---|---|"]
         for i, r in enumerate(g.to_dict("records"), 1):

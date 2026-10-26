@@ -36,6 +36,21 @@ caps:             # lowest triggered cap wins
   # CBA ~4.2%, ANZ ~5.0% vs 5.22%). The model scored CBA and ANZ 10/10 raw without bank data.
   financial_return_below_bond: 5
 
+# Tracks (playbook B1 v1.2). Hidden gem = passes 2+ "less known" tests; Fallen quality = fails
+# 2+ AND is at least 30% below its 52-week high; large companies that have not fallen are
+# labelled "large" (no setup). Media coverage (the 4th test) is not available to the code.
+tracks:
+  size_max: {USD: 5000000000, AUD: 5000000000, INR: 250000000000}
+  analysts_max: {us: 8, asx: 5, india: 5}
+  # Index test: ASX 100 approximated by the 100 largest in the ASX 200 universe; for US
+  # universes drawn from the S&P 500 every company is a member (fails the test).
+  index_top_n: {asx: 100, india: 100}
+  index_member_universes: [sp500, us_top100]
+  fallen_min_drawdown: 0.30
+
+# Industries never analysed (Kirti, 26 Oct 2026: does not invest in airlines)
+exclude_industries: [airlines]
+
 hypothetical_8:   # all five needed for 8+, otherwise cap 7
   max_mid_cycle_pe: 15
   min_insider_pct: 10

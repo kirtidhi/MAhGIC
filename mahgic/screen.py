@@ -124,6 +124,31 @@ def phase0(info: dict, fcf_prev: float | None = None, cfg: dict | None = None) -
     }
 
 
+def assign_tracks(df: pd.DataFrame, ctx: RunContext, cfg: dict | None = None) -> pd.DataFrame:
+    """Playbook B1 v1.2 tracks. Oct 2026: the screen used size alone (A$2b), so only 26 of 196
+    ASX names were Hidden gems; by the playbook's tests it is 88."""
+    t = (cfg or scoring()).get("tracks") or {}
+    mkt, uni = ctx.market, ctx.universe
+    size_max = float((t.get("size_max") or {}).get(df["currency"].mode()[0] if not df.empty else "USD", 5e9))
+    analysts_max = (t.get("analysts_max") or {}).get(mkt, 5)
+    if uni in (t.get("index_member_universes") or []):
+        in_index = pd.Series(True, index=df.index)
+    elif (t.get("index_top_n") or {}).get(mkt):
+        n = t["index_top_n"][mkt]
+        in_index = df["market_cap"].rank(ascending=False, method="first") <= n
+    else:
+        in_index = pd.Series(False, index=df.index)
+    small = df["market_cap"].fillna(0) <= size_max
+    few = df["analyst_count"].apply(lambda a: a is not None and not pd.isna(a) and a <= analysts_max)
+    passed = small.astype(int) + (~in_index).astype(int) + few.astype(int)
+    fallen = df["drawdown_from_high"].fillna(0) >= t.get("fallen_min_drawdown", 0.30)
+    df = df.copy()
+    df["less_known_tests_passed"] = passed
+    df["track"] = ["hidden_gem" if p >= 2 else ("fallen_quality" if f else "large")
+                   for p, f in zip(passed, fallen)]
+    return df
+
+
 def _prev_year_fcf(fund: dict | None) -> float | None:
     """Annual series are newest first; index 1 is the prior fiscal year."""
     series = ((fund or {}).get("annual") or {}).get("fcf") or []
@@ -155,6 +180,13 @@ def run(ctx: RunContext, universe: pd.DataFrame, workers: int = 3, force: bool =
     df = pd.DataFrame(rows)
     if df.empty:
         return df
+    excl = [x.lower() for x in (scoring().get("exclude_industries") or [])]
+    if excl:
+        drop = df["industry"].fillna("").str.lower().apply(lambda s: any(x in s for x in excl))
+        if drop.any():
+            log.info("Screen: excluded %d (%s): %s", int(drop.sum()), ", ".join(excl),
+                     ", ".join(df.loc[drop, "ticker"]))
+        df = df[~drop]
     df = df.sort_values(["score", "drawdown_from_high"], ascending=[False, False], na_position="last")
 
     top_n = ctx.universe_cfg.get("top_n_by_market_cap")
@@ -162,6 +194,7 @@ def run(ctx: RunContext, universe: pd.DataFrame, workers: int = 3, force: bool =
         df = df.sort_values("market_cap", ascending=False).head(top_n)
         df = df.sort_values(["score", "drawdown_from_high"], ascending=[False, False], na_position="last")
 
+    df = assign_tracks(df, ctx)
     df.to_csv(ctx.dir / "screen.csv", index=False)
     missing = sorted(set(universe["ticker"]) - set(df["ticker"])) if not top_n else []
     log.info("Screen: %d scored, %d financials, %d no data", df["score"].notna().sum(),
