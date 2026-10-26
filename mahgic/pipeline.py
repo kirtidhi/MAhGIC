@@ -275,7 +275,11 @@ class Pipeline:
         releases for every company, (b) the drafting model writes every thesis."""
         mp = score_mod.max_points(self.cfg)
         system = prompts.draft_system(self.ctx.market)
-        todo = [t for t in self.selected() if self._need(t, "draft") and self.store.has(t, "analysis")]
+        def stale(t):  # a stored draft with a section scale error is redone
+            d = self.store.load(t, "draft") if self.store.has(t, "draft") else None
+            return bool(d and score_mod.out_of_range(d, mp))
+        todo = [t for t in self.selected()
+                if (self._need(t, "draft") or stale(t)) and self.store.has(t, "analysis")]
 
         for i, t in enumerate(todo, 1):  # (a) reading
             if self.time_up():
@@ -291,6 +295,10 @@ class Pipeline:
         def validate(d):
             for sct in score_mod.SECTIONS:
                 float(d["sections"][sct]["points"])
+            bad = score_mod.out_of_range(d, mp)
+            if bad:
+                raise ValueError("points above the section maximum: " + ", ".join(
+                    f"{k} {v} (max {mp[k]})" for k, v in bad.items()) + ". Score each section within its maximum")
 
         for i, t in enumerate(todo, 1):  # (b) drafting
             if self.time_up():

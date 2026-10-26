@@ -208,8 +208,8 @@ def call_json(task: str, system: str, user: str, validate=None) -> tuple[dict, d
         except (ValueError, KeyError, TypeError) as e:
             last_err = e
             if label == "first":
-                attempts.append(("json_retry", user + "\n\nYour last reply was not valid JSON for the schema. "
-                                 "Reply with JSON only.", None))
+                attempts.append(("json_retry", user + f"\n\nYour last reply was not valid for the schema ({str(e)[:300]}). "
+                                 "Fix that and reply with JSON only.", None))
     can_pay = m.get("max_paid_calls_per_run", 0) > 0
     if m["escalate"].get("on_invalid_json") and can_pay and is_local(provider_for(task)):
         rev = m["tasks"].get("review_thesis", "anthropic")

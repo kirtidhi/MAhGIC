@@ -12,6 +12,18 @@ def max_points(cfg: dict) -> dict:
     return {**w["three_q"], **{k: w[k] for k in ("financials", "macro", "strategic_intent", "leadership", "regulatory")}}
 
 
+def out_of_range(draft: dict, mp: dict, tol: float = 1.05) -> dict:
+    """Sections whose points exceed the section maximum (Oct 2026: 6 of 196 ASX drafts used a
+    0-10 style scale per section, e.g. CBA business 5 of max 1; clamping each to its max turned
+    those into near-perfect raw scores)."""
+    out = {}
+    for s in SECTIONS:
+        v = ((draft.get("sections") or {}).get(s) or {}).get("points")
+        if isinstance(v, (int, float)) and v > mp[s] * tol:
+            out[s] = v
+    return out
+
+
 def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict, filings: dict | None = None) -> dict:
     mp = max_points(cfg)
     sections = draft.get("sections", {})
@@ -23,6 +35,9 @@ def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict, fil
             v = 0.0
         points[s] = max(0.0, min(float(v), mp[s]))
     raw = round(sum(points.values()), 1)
+    bad = out_of_range(draft, mp)
+    if bad:  # never let a scale error pass as a perfect score
+        problems.append("points above section maximum (scale error): " + ", ".join(f"{k} {v}" for k, v in bad.items()))
 
     caps = [(c["cap"], c["why"]) for c in redflags.get("hard_caps", [])]
     confirmed = {c.get("item") for c in draft.get("caps_confirmed", []) if c.get("confirmed")}
@@ -67,6 +82,6 @@ def final(draft: dict, redflags: dict, metrics: dict, info: dict, cfg: dict, fil
     return {"raw": raw, "score": score, "points": points, "caps_applied": [{"cap": c, "why": w} for c, w in caps],
             "binding_cap": cap if cap < raw else None, "profile_8": profile,
             "confidence_by_section": dict(zip(SECTIONS, conf)),
-            "low_confidence": low >= 2, "problems": problems,
+            "low_confidence": low >= 2 or bool(bad), "problems": problems,
             "valuation_basis": vt.get("basis"),
             "_ey_fcf": {"earnings_yield": metrics.get("earnings_yield"), "fcf_yield": metrics.get("fcf_yield")}}

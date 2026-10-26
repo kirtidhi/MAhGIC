@@ -255,3 +255,29 @@ def test_summary_orders_ties_by_raw_and_states_no_review():
     out = summary.build(rows, {"market": "asx", "universe": "x", "date": "d", "draft_model": "q", "paid_calls": 0})
     assert out.index("| B |") < out.index("| C |") < out.index("| A |")
     assert "Reviews: none" in out
+
+
+def test_points_above_section_max_are_flagged_not_clamped_into_a_perfect_score():
+    d = _draft()
+    d["sections"]["business"]["points"] = 5  # CBA Oct 2026: 0-10 style points on a max-1.0 section
+    mp = score.max_points(CFG)
+    assert score.out_of_range(d, mp) == {"business": 5, "management": 9, "balance_sheet": 9, "financials": 9,
+                                         "macro": 9, "strategic_intent": 9, "leadership": 9, "regulatory": 9}
+    s = score.final(d, {"hard_caps": [], "check_caps": []}, {}, {}, CFG)
+    assert s["low_confidence"] and any("scale error" in p for p in s["problems"])
+
+
+def test_json_retry_tells_the_model_what_was_wrong(monkeypatch):
+    sent = []
+
+    def fake_call(task, system, user, json_mode=False, provider=None, overrides=None):
+        sent.append(user)
+        return ('{"x": 1}', {})
+
+    def validate(d):
+        if len(sent) == 1:
+            raise ValueError("points above the section maximum: business 5 (max 1.0)")
+
+    monkeypatch.setattr(providers, "call", fake_call)
+    data, meta = providers.call_json("draft_thesis", "sys", "user", validate)
+    assert meta["attempt"] == "json_retry" and "business 5 (max 1.0)" in sent[1]
