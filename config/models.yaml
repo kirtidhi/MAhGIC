@@ -51,6 +51,7 @@ tasks:
   extract_filing: ollama_fast    # map step: pull facts out of 10-K / 10-Q / 20-F chunks
   extract_guidance: ollama_fast  # guidance history from results releases / ASX announcements
   summarise_jobs: ollama_fast    # B2: classify postings into strategic themes
+  review_pack: ollama_fast       # checklist answers for a Claude review (python -m mahgic pack)
   draft_thesis: ollama           # B6 section scores + narrative, as JSON
   review_thesis: anthropic   # second read of the top names only
 

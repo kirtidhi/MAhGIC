@@ -9,6 +9,11 @@ phase0:
   forward_pe: [0, 25]
   deep_drawdown_checklist: 0.70
   financial_industries: [bank, insurance, capital markets, asset management, mortgage, credit services]
+  # Balance-sheet lenders/insurers are valued on ROE / price-to-book. Fund managers and investment
+  # houses are asset-light (GQG Oct 2026: ROE 104%) and are valued like other companies; listed
+  # investment companies (no forward P/E) on price-to-book as a proxy for price-to-NTA.
+  balance_sheet_financials: [bank, insurance, mortgage, credit services]
+  lic_max_price_to_book: 1.0
   cyclical_sectors: [Energy, Basic Materials]
   # Industries outside those sectors that are just as cyclical (VGN Oct 2026: an airline at ~4.5x peak earnings)
   cyclical_industries: [airlines, auto manufacturers, residential construction, marine shipping, travel services]

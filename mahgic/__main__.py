@@ -60,10 +60,39 @@ def status(ctx: RunContext) -> None:
             print(f"{err:13s} {len(bad)}: {', '.join(bad[:20])}")
 
 
+def pack(ctx: RunContext, tickers: list[str]) -> int:
+    """Review packs for a Claude review: data/<date>/<market>/<universe>/<T>/pack_<T>.md and one
+    combined packs_<market>.md. Uses only the fast local model; about 3 minutes a company."""
+    import time
+
+    from .analyse import score as score_mod
+    from .config import scoring
+    from .report import pack as pack_mod
+    from .store import Store
+
+    s, cfg = Store(ctx), scoring()
+    mp, out = score_mod.max_points(cfg), []
+    pipe = Pipeline(ctx)
+    for i, t in enumerate(tickers, 1):
+        if not s.has(t, "analysis"):
+            logging.warning("%s: no analysis for this run date; skipped", t)
+            continue
+        t0 = time.time()
+        pipe._analysis(t)  # current rules (e.g. the fund-manager fix) before the pack is written
+        md = pack_mod.build(t, s, cfg, mp)
+        s.save_text(t, f"pack_{t}", md)
+        out.append(md)
+        logging.info("[pack %d/%d] %s in %.0fs", i, len(tickers), t, time.time() - t0)
+    p = ctx.dir / f"packs_{ctx.market}.md"
+    p.write_text("\n\n---\n\n".join(out))
+    logging.info("Wrote %s (%d packs)", p, len(out))
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="mahgic")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("run", "status"):
+    for name in ("run", "status", "pack"):
         p = sub.add_parser(name)
         p.add_argument("--market", required=True, choices=[k for k, v in markets().items() if v.get("enabled", True)])
         p.add_argument("--universe", required=True)
@@ -77,6 +106,9 @@ def main(argv=None) -> int:
             p.add_argument("--max-chunks", type=int, default=6, help="filing chunks read per company")
             p.add_argument("--max-guidance-docs", type=int, default=5,
                            help="results releases / ASX guidance announcements read per company")
+        if name == "pack":
+            p.add_argument("--tickers", required=True, help="comma list of companies to prepare review packs for")
+        if name == "run":
             p.add_argument("--until", help="stop cleanly at this local time (HH:MM, e.g. 07:00); "
                                            "resume the next night with the same --date")
     sub.add_parser("check")
@@ -90,6 +122,8 @@ def main(argv=None) -> int:
     if a.cmd == "status":
         status(ctx)
         return 0
+    if a.cmd == "pack":
+        return pack(ctx, [t.strip().upper() for t in a.tickers.split(",") if t.strip()])
     until = None
     if a.until:
         from datetime import datetime, timedelta

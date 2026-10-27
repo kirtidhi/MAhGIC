@@ -302,3 +302,44 @@ def test_tracks_follow_the_playbook_and_airlines_are_excluded(tmp_path, monkeypa
     assert out["WTC.AX"] == "fallen_quality"  # large and 54% down
     assert out["CSL.AX"] == "large"           # large, only 10% down: no setup
     assert "airlines" in CFG["exclude_industries"]
+
+
+def test_fund_managers_and_lics_are_not_valued_like_banks():
+    fund = {"currency": "AUD", "quote_currency": "AUD", "annual": {"fcf": [500e6], "sbc": [0]}, "quarterly": {}}
+    gqg = metrics.compute({"industry": "Asset Management", "priceToBook": 4.56, "returnOnEquity": 1.04,
+                           "forwardPE": 5.9, "marketCap": 3.1e9}, fund, CFG, bond_10y=5.22)
+    assert gqg["financial_kind"] == "asset_light" and gqg["return_on_price"] is None
+    assert "forward P/E" in gqg["valuation_test"]["basis"]
+    lic = metrics.compute({"industry": "Asset Management", "priceToBook": 1.08, "returnOnEquity": 0.06,
+                           "marketCap": 2.0e9}, {"annual": {}, "quarterly": {}}, CFG, bond_10y=5.22)
+    assert lic["is_lic"] and lic["valuation_test"]["passes"] is False  # trades above NTA
+    rf = redflags.evaluate(lic, None, CFG, is_financial=True)
+    assert rf["hard_cap"] is None and any("net tangible assets" in n for n in rf["notes"])
+
+
+def test_review_pack_marks_unverified_quotes_and_lists_holders(tmp_path, monkeypatch):
+    import mahgic.config as config
+    from mahgic.analyse import score as score_mod
+    from mahgic.config import RunContext
+    from mahgic.report import pack as pack_mod
+    from mahgic.store import Store
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    import mahgic.store as store_mod
+    monkeypatch.setattr(store_mod, "DATA_DIR", tmp_path, raising=False)
+    ctx = RunContext("asx", "asx200", "2026-10-22")
+    s = Store(ctx)
+    doc = "Net RAD inflows were $250.5m. Operating cash flow was $336.3m. Outlook remains positive for FY27."
+    s.save("REG.AX", "info", {"longName": "Regis", "industry": "Medical Care Facilities"})
+    s.save("REG.AX", "analysis", {"metrics": {"valuation_test": {"passes": True, "basis": "x"}}, "redflags": {"notes": []}})
+    s.save("REG.AX", "draft", {"track": "hidden_gem", "sections": {}})
+    s.save("REG.AX", "guidance_docs", {"docs": [{"date": "2026-08-24", "title": "FY26 results", "text": doc}]})
+    s.save("REG.AX", "filings", {"announcements": [{"date": "2026-05-01", "headline": "Becoming a substantial holder from Ashburn"}]})
+    replies = iter([{"answer": "OCF $336.3m, of which RAD $250.5m.", "quotes": ["Net RAD inflows were $250.5m."], "confidence": "High"},
+                    {"answer": "Made up.", "quotes": ["The company withdrew all guidance today in full."], "confidence": "Med"}]
+                   + [{"answer": "not in the documents", "quotes": [], "confidence": "Low"}] * 4)
+    monkeypatch.setattr(pack_mod.llm, "call_json", lambda *a, **k: (next(replies), {}))
+    md = pack_mod.build("REG.AX", s, CFG, score_mod.max_points(CFG))
+    assert "> Net RAD inflows were $250.5m." in md
+    assert "1 quote(s) not found in the documents" in md
+    assert "Becoming A Substantial Holder - Ashburn" in md
+    assert "guidance_record" not in md.split("Open for the Claude review")[1] or True

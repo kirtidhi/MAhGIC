@@ -61,7 +61,13 @@ def valuation_test(m: dict, cfg: dict) -> dict:
     ~3.5% after), cyclicals on mid-cycle (median 5-year) EPS (VLO at peak refining margins)."""
     h = cfg["hypothetical_8"]
     bond = m.get("bond_10y")
-    if m.get("is_financial"):
+    if m.get("is_lic"):
+        pb = m.get("price_to_book")
+        if pb is None:
+            return {"passes": None, "basis": "investment company: price-to-book (NTA proxy) unavailable"}
+        mx = cfg["phase0"].get("lic_max_price_to_book", 1.0)
+        return {"passes": pb <= mx, "basis": f"investment company: price/book {pb:.2f} (NTA proxy) vs {mx:.2f}"}
+    if m.get("is_financial") and m.get("financial_kind") == "balance_sheet":
         rp = m.get("return_on_price")
         if rp is None or bond is None:
             return {"passes": None, "basis": "bank/insurer: ROE or price-to-book unavailable"}
@@ -131,13 +137,18 @@ def compute(info: dict, fund: dict, cfg: dict, bond_10y: float | None = None) ->
     is_cyc = ((g("sector") or "") in cfg["phase0"]["cyclical_sectors"]
               or any(k in industry for k in cfg["phase0"].get("cyclical_industries", [])))
     is_fin = any(k in industry for k in cfg["phase0"]["financial_industries"])
+    bs_fin = any(k in industry for k in cfg["phase0"].get("balance_sheet_financials", []))
     pb, roe = g("priceToBook"), g("returnOnEquity")
+    # Listed investment companies: asset management with no forward earnings estimate
+    is_lic = is_fin and not bs_fin and "asset management" in industry and not g("forwardPE")
     out = {
         # Banks and insurers are judged on capital returns, not industrial cash-flow tests
         "is_financial": is_fin,
+        "financial_kind": None if not is_fin else ("balance_sheet" if bs_fin else ("lic" if is_lic else "asset_light")),
+        "is_lic": is_lic,
         "roe": roe if is_fin else None,
         "price_to_book": pb if is_fin else None,
-        "return_on_price": (roe / pb) if is_fin and roe is not None and pb and pb > 0 else None,
+        "return_on_price": (roe / pb) if bs_fin and roe is not None and pb and pb > 0 else None,
         "currency": (fund or {}).get("currency"),
         "revenue_latest": rev0,
         "revenue_cagr_5y": cagr(rev),

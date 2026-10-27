@@ -23,7 +23,13 @@ def evaluate(metrics: dict, filings: dict | None, cfg: dict, is_financial: bool 
     caps = cfg["caps"]
     hard, check, notes = [], [], []
 
-    if is_financial:
+    kind = metrics.get("financial_kind")
+    if is_financial and kind in ("lic", "asset_light"):
+        notes.append("Investment company: judge on price vs net tangible assets (P/B proxy), portfolio "
+                     "performance and fees, not on operating cash flow" if kind == "lic" else
+                     "Fund manager / investment house (asset-light): judge on funds under management flows, "
+                     "fee margins and performance fees; ROE is not a useful test here")
+    elif is_financial:
         notes.append("Bank/insurer/financial: industrial cash-flow tests (OCF vs net income, receivable "
                      "days, ROIC) not applied; judge on capital, credit quality and returns on equity (A7). "
                      "Balance-sheet and financials points must reflect ROE and price-to-book, not size or brand")
