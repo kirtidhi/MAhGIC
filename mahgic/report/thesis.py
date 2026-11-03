@@ -1,5 +1,13 @@
-"""Render one thesis_<TICKER>.md from the stored stage outputs."""
+"""Render one thesis_<TICKER>.md from the stored stage outputs.
+
+Nov 2026: opens with "What it does", "Why it matters now" and the leadership team, and prints
+the evidence in plain English (report/plain.py), so a non-investor can follow it.
+"""
 from __future__ import annotations
+
+from . import plain
+
+TRACK_NAMES = {"hidden_gem": "Hidden gem", "fallen_quality": "Fallen quality", "large": "Large, no setup"}
 
 
 def _fmt(v, pct=False, money=False):
@@ -24,13 +32,20 @@ TITLES = {"business": "Business (Three Q)", "management": "Management (Three Q)"
 
 
 def render(ticker: str, row: dict, metrics: dict, redflags: dict, draft: dict, scored: dict,
-           review: dict | None, run_meta: dict) -> str:
+           review: dict | None, run_meta: dict, extras: dict | None = None) -> str:
     cur = metrics.get("currency") or ""
-    L = [f"# {ticker} — {row.get('name') or ''}",
+    ex = extras or {}
+    info = ex.get("info") or {}
+    track = row.get("track") or draft.get("track")
+    name = info.get("longName") or row.get("name") or ""
+    L = [f"# {ticker} — {name}",
          f"**Run:** {run_meta['date']} · {run_meta['market']} / {run_meta['universe']} · "
-         f"track: {draft.get('track') or row.get('track')} · drafted by {run_meta.get('draft_model')}"
+         f"track: {TRACK_NAMES.get(track, track)} · drafted by {run_meta.get('draft_model')}"
          + (f" · reviewed by {run_meta.get('review_model')}" if review else ""),
-         "",
+         ""]
+    L += plain.describe_block(ex.get("describe"), info)
+    L += ["", "## Leadership"] + plain.leadership(info, redflags, ex.get("filings"))
+    L += ["",
          f"## Score: {scored['score']} / 10" + (" (low confidence)" if scored["low_confidence"] else ""),
          f"Raw {scored['raw']}" + (f", capped at {scored['binding_cap']}" if scored.get("binding_cap") else ""),
          "", f"> {draft.get('one_line', '')}", "",
@@ -74,9 +89,11 @@ def render(ticker: str, row: dict, metrics: dict, redflags: dict, draft: dict, s
 
     for s, title in TITLES.items():
         sec = (draft.get("sections") or {}).get(s) or {}
-        L += ["", f"## {title}"] + [f"- {e}" for e in sec.get("evidence", [])]
-        if sec.get("gaps"):
-            L.append(f"- *Gaps:* {'; '.join(sec['gaps'])}")
+        ev = plain.evidence_list(sec.get("evidence", []), cur)
+        gaps = [g for g in (plain.gap(g) for g in sec.get("gaps") or []) if g.lower() not in " ".join(ev).lower()]
+        L += ["", f"## {title}"] + ([f"- {e}" for e in ev] or ["- Nothing flagged"])
+        if gaps:
+            L.append(f"- *Gaps:* {'; '.join(gaps)}")
 
     L += ["", "## Curable negative", draft.get("curable_negative", "n/a"),
           "", "## Bear case"] + [f"- {b}" for b in draft.get("bear_case", [])]

@@ -6,6 +6,8 @@
   python -m mahgic status --market us --universe us_top100
   python -m mahgic run --market asx --universe asx200 --date 2026-10-20 --until 07:00   # one night
   python -m mahgic check            # Ollama reachable? models pulled? CONTACT_EMAIL set?
+  python -m mahgic describe --market asx --universe asx200 --date 2026-10-22 --until 07:00
+  python -m mahgic combine --market asx --universe asx200 --date 2026-10-22   # all theses, one file
   scripts/night_run.sh              # the multi-night first run (see the script header)
 """
 from __future__ import annotations
@@ -89,10 +91,24 @@ def pack(ctx: RunContext, tickers: list[str]) -> int:
     return 0
 
 
+def combine(ctx: RunContext) -> int:
+    """All thesis files of a run in one Markdown + HTML file, grouped by track."""
+    from .report import combined
+    from .store import Store
+
+    title = {"asx": "MA(h)GIC ASX 200", "us": "MA(h)GIC US top 100"}.get(ctx.market, f"MA(h)GIC {ctx.market}")
+    md, page = combined.build(ctx.dir, Store(ctx), title)
+    (ctx.dir / f"all_theses_{ctx.market}.md").write_text(md)
+    p = ctx.dir / f"all_theses_{ctx.market}.html"
+    p.write_text(page)
+    logging.info("Wrote %s", p)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="mahgic")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("run", "status", "pack"):
+    for name in ("run", "status", "pack", "describe", "combine"):
         p = sub.add_parser(name)
         p.add_argument("--market", required=True, choices=[k for k, v in markets().items() if v.get("enabled", True)])
         p.add_argument("--universe", required=True)
@@ -108,7 +124,10 @@ def main(argv=None) -> int:
                            help="results releases / ASX guidance announcements read per company")
         if name == "pack":
             p.add_argument("--tickers", required=True, help="comma list of companies to prepare review packs for")
-        if name == "run":
+        if name == "describe":
+            p.add_argument("--tickers", help="comma list (default: every company with a draft)")
+            p.add_argument("--force", action="store_true", help="rewrite existing descriptions")
+        if name in ("run", "describe"):
             p.add_argument("--until", help="stop cleanly at this local time (HH:MM, e.g. 07:00); "
                                            "resume the next night with the same --date")
     sub.add_parser("check")
@@ -124,6 +143,8 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "pack":
         return pack(ctx, [t.strip().upper() for t in a.tickers.split(",") if t.strip()])
+    if a.cmd == "combine":
+        return combine(ctx)
     until = None
     if a.until:
         from datetime import datetime, timedelta
@@ -133,6 +154,14 @@ def main(argv=None) -> int:
         if until <= now:
             until += timedelta(days=1)
         logging.info("Will stop at %s", until.strftime("%Y-%m-%d %H:%M"))
+    if a.cmd == "describe":
+        from .report import describe as describe_mod
+        from .store import Store
+
+        s = Store(ctx)
+        tickers = ([t.strip().upper() for t in a.tickers.split(",")] if a.tickers else s.tickers_with("draft"))
+        pipe = Pipeline(ctx, until=until)
+        return describe_mod.run(s, tickers, force=a.force, time_up=pipe.time_up)
     pipe = Pipeline(ctx, force=a.force, limit=a.limit, workers=a.workers, max_chunks=a.max_chunks,
                     until=until, max_guidance_docs=a.max_guidance_docs,
                     tickers=[t.strip().upper() for t in a.tickers.split(",")] if a.tickers else None)

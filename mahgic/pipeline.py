@@ -377,7 +377,9 @@ class Pipeline:
                 r["_s"] = score_mod.final(d2, a["redflags"], a["metrics"], self.store.load(t, "info") or {}, self.cfg,
                                          self.store.load(t, "filings"))
                 r.update(score=r["_s"]["score"], raw=r["_s"]["raw"], cap=r["_s"].get("binding_cap"), reviewed=True)
-            md = thesis_mod.render(t, self.screen_row(t), a["metrics"], a["redflags"], d, r["_s"], rev, meta)
+            extras = {"info": self.store.load(t, "info"), "describe": self.store.load(t, "describe"),
+                      "filings": self.store.load(t, "filings")}
+            md = thesis_mod.render(t, self.screen_row(t), a["metrics"], a["redflags"], d, r["_s"], rev, meta, extras)
             self.store.save_text(t, f"thesis_{t}", md)
 
         meta["paid_calls"] = llm.paid_calls_used()
