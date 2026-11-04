@@ -33,3 +33,21 @@ def test_leadership_counts_sec_changes():
     assert L[0] == "- **Ms. Jane Doe**, Co-Founder & CEO, age 50"
     assert "parent company" in L[1]
     assert any("2 director or officer changes" in x and "2026-07-02" in x for x in L)
+
+
+def test_figure_check_catches_a_dollar_change_read_as_percent():
+    from mahgic.report.describe import check_numbers
+    doc = ("Sales Revenue1 2,343.4 2,355.8 (12.4) (<1%)\nStatutory net profit for the period attributable to "
+           "members 147.3 388.9 (241.6) (62%)\nSales revenue was $2,343.4m, down 1% on last year.")
+    ok, missing = check_numbers("Sales Revenue dropping by 12.4% to $2,343.4m. Profit fell to $147.3m.",
+                                "Sales revenue was $2,343.4m, down 1% on last year.", doc)
+    assert not ok and missing == ["12.4%"]
+    ok, missing = check_numbers("Sales revenue was $2,343.4m, down 1%, and statutory profit fell 62% to $147.3m.",
+                                "Sales revenue was $2,343.4m, down 1% on last year.", doc)
+    assert ok and missing == []
+
+
+def test_money_display():
+    assert plain.tidy_money("Sales revenue $702,015k and $2,343.4m; US$64,601 million") == \
+        "Sales revenue $702m and $2.34bn; US$64.60bn"
+    assert plain.tidy_money("A$1,926,607 thousand, dividend $0.86") == "A$1.93bn, dividend $0.86"

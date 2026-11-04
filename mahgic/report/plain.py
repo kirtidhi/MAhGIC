@@ -253,12 +253,40 @@ def describe_block(desc: dict | None, info: dict | None) -> list[str]:
         L.append("No description available.")
     L += ["", "## Why it matters now"]
     if desc and desc.get("why_now"):
-        L.append(desc["why_now"])
-        if desc.get("quote_verified"):
+        L.append(tidy_money(desc["why_now"]))
+        ok = desc.get("verified", desc.get("quote_verified"))
+        if ok:
             L.append(f"> {desc['quote']}")
             L.append(f"*Source: {desc.get('source') or 'latest results release'}*")
-        elif desc.get("quote"):
-            L.append("*The supporting quote was not found in the document: treat this paragraph as unverified.*")
+        elif desc.get("source"):
+            why = ("these figures were not found in the release: " + ", ".join(desc["missing_numbers"])
+                   if desc.get("missing_numbers") else "no supporting quote with a figure was found in the release")
+            L.append(f"*Unverified: {why}. Treat this paragraph with care.*")
     else:
         L.append("Not written yet (run `python -m mahgic describe`).")
     return L
+
+
+# ---------- money formatting for display (verification runs on the raw text) ----------
+_MONEY = re.compile(r"((?:A|US|NZ|C)?\$|AUD |USD )\s?(\d[\d,]*(?:\.\d+)?)\s?(k|m|bn|b|million|billion|thousand)?(?![\w.])", re.I)
+_SCALE = {"k": 1e3, "thousand": 1e3, "m": 1e6, "million": 1e6, "b": 1e9, "bn": 1e9, "billion": 1e9}
+
+
+def tidy_money(text: str) -> str:
+    """$702,015k -> $702.0m; $2,343.4m -> $2.34bn; $64,601 million -> $64.6bn."""
+    def f(m):
+        cur, num, unit = m.group(1), m.group(2), (m.group(3) or "").lower()
+        try:
+            v = float(num.replace(",", "")) * _SCALE.get(unit, 1)
+        except ValueError:
+            return m.group(0)
+        if not unit and v < 1e6:
+            return m.group(0)
+        if v >= 1e12:
+            return f"{cur}{v/1e12:.2f} trillion"
+        if v >= 1e9:
+            return f"{cur}{v/1e9:.2f}bn" if v < 1e11 else f"{cur}{v/1e9:.0f}bn"
+        if v >= 1e6:
+            return f"{cur}{v/1e6:.1f}m" if v < 1e8 else f"{cur}{v/1e6:.0f}m"
+        return m.group(0)
+    return _MONEY.sub(f, text)

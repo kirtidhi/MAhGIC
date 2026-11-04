@@ -127,6 +127,8 @@ def main(argv=None) -> int:
         if name == "describe":
             p.add_argument("--tickers", help="comma list (default: every company with a draft)")
             p.add_argument("--force", action="store_true", help="rewrite existing descriptions")
+            p.add_argument("--redo-unverified", action="store_true",
+                           help="rewrite only paragraphs whose quote or figures failed the check")
         if name in ("run", "describe"):
             p.add_argument("--until", help="stop cleanly at this local time (HH:MM, e.g. 07:00); "
                                            "resume the next night with the same --date")
@@ -161,7 +163,7 @@ def main(argv=None) -> int:
         s = Store(ctx)
         tickers = ([t.strip().upper() for t in a.tickers.split(",")] if a.tickers else s.tickers_with("draft"))
         pipe = Pipeline(ctx, until=until)
-        return describe_mod.run(s, tickers, force=a.force, time_up=pipe.time_up)
+        return describe_mod.run(s, tickers, force=a.force, time_up=pipe.time_up, redo_unverified=a.redo_unverified)
     pipe = Pipeline(ctx, force=a.force, limit=a.limit, workers=a.workers, max_chunks=a.max_chunks,
                     until=until, max_guidance_docs=a.max_guidance_docs,
                     tickers=[t.strip().upper() for t in a.tickers.split(",")] if a.tickers else None)
