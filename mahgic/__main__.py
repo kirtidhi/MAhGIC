@@ -7,6 +7,7 @@
   python -m mahgic run --market asx --universe asx200 --date 2026-10-20 --until 07:00   # one night
   python -m mahgic check            # Ollama reachable? models pulled? CONTACT_EMAIL set?
   python -m mahgic describe --market asx --universe asx200 --date 2026-10-22 --until 07:00
+  python -m mahgic reprice --market asx --universe asx200 --date 2026-10-22   # new prices, no model
   python -m mahgic combine --market asx --universe asx200 --date 2026-10-22   # all theses, one file
   scripts/night_run.sh              # the multi-night first run (see the script header)
 """
@@ -108,7 +109,7 @@ def combine(ctx: RunContext) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="mahgic")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("run", "status", "pack", "describe", "combine"):
+    for name in ("run", "status", "pack", "describe", "combine", "reprice"):
         p = sub.add_parser(name)
         p.add_argument("--market", required=True, choices=[k for k, v in markets().items() if v.get("enabled", True)])
         p.add_argument("--universe", required=True)
@@ -147,6 +148,11 @@ def main(argv=None) -> int:
         return pack(ctx, [t.strip().upper() for t in a.tickers.split(",") if t.strip()])
     if a.cmd == "combine":
         return combine(ctx)
+    if a.cmd == "reprice":
+        from . import reprice
+
+        rc = reprice.run(ctx, Pipeline(ctx))
+        return rc or combine(ctx)
     until = None
     if a.until:
         from datetime import datetime, timedelta
